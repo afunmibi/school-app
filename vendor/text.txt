@@ -1,0 +1,173 @@
+FEATURES WE’LL BUILD
+1. Authentication System
+Multi-role login (Admin, Teacher, Student).
+
+Session-based access control.
+
+Registration only for students (teachers are created by Admin).
+
+2. Admin Dashboard
+Approve/Reject student pre-registrations.
+
+Create Teacher accounts.
+
+Approve student results submitted by teachers.
+
+3. Teacher Dashboard
+Give assignments by class (Basic 1–6).
+
+Record Continuous Assessments and Exams per student.
+
+Upload results for admin approval.
+
+4. Student Dashboard
+View assignments.
+
+View results after admin approval.
+
+Download their registration PDF.
+
+
+
+
+-- Create Assessments Table
+CREATE TABLE assessments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    assessment_score INT NOT NULL,
+    teacher_id INT NOT NULL,
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id)
+);
+
+-- Create Exam Results Table
+CREATE TABLE exam_results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    exam_score INT NOT NULL,
+    teacher_id INT NOT NULL,
+    status ENUM('approved', 'pending') DEFAULT 'pending',
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id)
+);
+
+-- Create Homework Table
+CREATE TABLE homework (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    homework_details TEXT NOT NULL,
+    teacher_id INT NOT NULL,
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id)
+);
+
+CREATE TABLE pre_registration (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(100),
+    unique_id VARCHAR(50) UNIQUE,
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    date_registered TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE student_login (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(50) UNIQUE,
+    password VARCHAR(255),
+    status ENUM('active', 'inactive') DEFAULT 'active'
+);
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100),
+    email VARCHAR(100) UNIQUE,
+    password VARCHAR(255),
+    role ENUM('admin', 'teacher'),
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(50) UNIQUE,
+    address TEXT,
+    age INT,
+    state_of_origin VARCHAR(100),
+    lga_origin VARCHAR(100),
+    state_of_residence VARCHAR(100),
+    lga_residence VARCHAR(100),
+    passport_photo VARCHAR(255),
+    religion VARCHAR(50),
+    class ENUM('Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'),
+    date_registered TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE parents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(50),
+    parent_name VARCHAR(100),
+    parent_address TEXT,
+    occupation VARCHAR(100),
+    comment TEXT,
+    FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE
+);
+
+CREATE TABLE documents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(50),
+    birth_cert VARCHAR(255),
+    testimonial VARCHAR(255),
+    passport VARCHAR(255),
+    FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE
+);
+CREATE TABLE assessments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(50),
+    subject VARCHAR(100),
+    continuous_assessment FLOAT, -- max 30
+    examination FLOAT, -- max 70
+    total FLOAT, -- CA + Exam
+    term ENUM('First Term', 'Second Term', 'Third Term'),
+    session VARCHAR(20),
+    class ENUM('Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'),
+    approved_by_admin TINYINT(1) DEFAULT 0,
+    teacher_id INT,
+    FOREIGN KEY (student_id) REFERENCES students(student_id),
+    FOREIGN KEY (teacher_id) REFERENCES users(id)
+);
+
+CREATE TABLE assignments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    teacher_id INT,
+    class ENUM('Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'),
+    subject VARCHAR(100),
+    title VARCHAR(255),
+    description TEXT,
+    due_date DATE,
+    date_posted TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (teacher_id) REFERENCES users(id)
+);
+CREATE TABLE teacher_profile (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    qualification VARCHAR(255),
+    phone_number VARCHAR(20),
+    passport_photo VARCHAR(255),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+CREATE TABLE admin_profile (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    phone_number VARCHAR(20),
+    passport_photo VARCHAR(255),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE activity_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    role ENUM('admin', 'teacher', 'student'),
+    activity TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
