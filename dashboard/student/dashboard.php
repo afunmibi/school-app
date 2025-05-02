@@ -35,7 +35,9 @@ $student = $result->fetch_assoc();
 
         <hr>
         <h5>Quick Access</h5>
+        <a href="../registration/full_register.php" class="btn btn-warning w-100 mb-2">Complete Full Registration</a>
         <a href="view_results.php" class="btn btn-success w-100 mb-2">View Results</a>
+        <a href="generate_result_pdf.php" class="btn btn-dark w-100 mb-2">Download Result (PDF)</a>
         <a href="view_assignments.php" class="btn btn-info w-100 mb-2">View Assignments</a>
 
         <hr>

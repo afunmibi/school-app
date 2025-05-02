@@ -10,13 +10,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 $message = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name     = trim($_POST['name']);
-    $email    = trim($_POST['email']);
-    $username = trim($_POST['username']);
-    $password = password_hash(trim($_POST['password']), PASSWORD_DEFAULT);
+    $name     = trim($_POST['name'] ?? '');
+    $email    = trim($_POST['email'] ?? '');
+    $username = trim($_POST['username'] ?? '');
+    $password = password_hash(trim($_POST['password'] ?? ''), PASSWORD_DEFAULT);
     $role     = 'teacher';
-    $assigned_class = trim($_POST['assigned_class']);
-    $assigned_subject = trim($_POST['assigned_subject']);
+    $assigned_class = trim($_POST['assigned_class'] ?? '');
+    $assigned_subject = trim($_POST['assigned_subject'] ?? '');
 
     // Check if username or email already exists
     $stmt_check = $conn->prepare("SELECT id FROM users WHERE email = ? OR username = ?");
@@ -31,14 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param("sssss", $name, $email, $username, $password, $role);
         if ($stmt->execute()) {
             $teacher_id = $stmt->insert_id;
-        // update teacher_classes table at the same time for scalability
+
+            // Insert class assignment
             $stmt2 = $conn->prepare("INSERT INTO teacher_classes (teacher_id, assigned_class) VALUES (?, ?)");
             $stmt2->bind_param("is", $teacher_id, $assigned_class);
             $stmt2->execute();
-        
+
             $message = "<div class='alert alert-success'>Teacher added successfully. <a href='admin_dashboard.php' class='alert-link'>Go back</a></div>";
-        }
-         else {
+        } else {
             $message = "<div class='alert alert-danger'>Error adding teacher.</div>";
         }
     }
@@ -102,20 +102,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="password" name="password" id="password" required class="form-control" placeholder="Create a password">
                         </div>
                         <div class="mb-3">
-                        <label for="assigned_class" class="form-label">Assign Class</label>
-                        <select name="assigned_class" id="assigned_class" required class="form-select">
-                            <option value="">-- Select Class --</option>
-                            <option value="Basic 1">Basic 1</option>
-                            <option value="Basic 2">Basic 2</option>
-                            <option value="Basic 3">Basic 3</option>
-                            <option value="Basic 4">Basic 4</option>
-                            <option value="Basic 5">Basic 5</option>
-                            <option value="Basic 6">Basic 6</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                    <input type="text" name="assigned_subject" class="form-control" placeholder="or e.g. Mathematics" required readonly>
-
+                            <label for="assigned_class" class="form-label">Assign Class</label>
+                            <select name="assigned_class" id="assigned_class" required class="form-select">
+                                <option value="">-- Select Class --</option>
+                                <option value="Basic 1">Basic 1</option>
+                                <option value="Basic 2">Basic 2</option>
+                                <option value="Basic 3">Basic 3</option>
+                                <option value="Basic 4">Basic 4</option>
+                                <option value="Basic 5">Basic 5</option>
+                                <option value="Basic 6">Basic 6</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" name="assigned_subject" class="form-control" placeholder="or e.g. Mathematics" required readonly>
                         </div>
                         <button type="submit" class="btn btn-success mt-2">Add Teacher</button>
                     </form>
@@ -138,7 +137,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </thead>
                         <tbody>
                             <?php
-                            $query = "SELECT id,full_name, email, username FROM users WHERE role = 'teacher'";
+                            $query = "SELECT u.id, u.full_name, u.email, u.username, tc.assigned_class 
+                                      FROM users u
+                                      LEFT JOIN teacher_classes tc ON u.id = tc.teacher_id
+                                      WHERE u.role = 'teacher'";
                             $result = $conn->query($query);
                             $sn = 1;
                             while ($row = $result->fetch_assoc()):
@@ -148,8 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <td><?= htmlspecialchars($row['full_name']); ?></td>
                                     <td><?= htmlspecialchars($row['email']); ?></td>
                                     <td><?= htmlspecialchars($row['username']); ?></td>
-                                    <td><?= htmlspecialchars($row['assigned_class']); ?></td>
-
+                                    <td><?= htmlspecialchars($row['assigned_class'] ?? ''); ?></td>
                                     <td>
                                         <a href="edit_teacher.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-warning">Edit</a>
                                         <a href="delete_teacher.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this teacher?');">Delete</a>
@@ -165,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="alert alert-danger">Teacher deleted successfully!</div>
                     <?php endif; ?>
                     <div class="text-center mt-4">
-                        <a href="../admin/dashboard.php" class="btn btn-danger">Go Back</a>
+                        <a href="./dashboard.php" class="btn btn-danger">Go Back</a>
                     </div>
                 </div>
             </div>
