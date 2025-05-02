@@ -16,7 +16,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt = $conn->prepare("SELECT * FROM student_login WHERE unique_id = ?");
         $stmt->bind_param("s", $username);
     } else {
-        echo "Invalid role selected.";
+        echo "<script>alert('Invalid role selected.');</script>";
         exit;
     }
 
@@ -30,22 +30,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['role'] = $role;
 
             if ($role == 'admin' || $role == 'teacher') {
-                $_SESSION['user_id'] = $user['id']; // Use this consistently
+                $_SESSION['user_id'] = $user['id'];
             } else {
-                $_SESSION['unique_id'] = $user['unique_id'];
+                $_SESSION['student_id'] = $user['unique_id']; // Corrected session key
             }
 
-            // Redirect
-            if ($role == 'admin') {
-                header("Location: " . $base_url . "dashboard/admin/dashboard.php");
-                exit;
-            } elseif ($role == 'teacher') {
-                header("Location: " . $base_url . "dashboard/teacher/dashboard.php");
-                exit;
-            } else {
-                header("Location: " . $base_url . "dashboard/student/dashboard.php");
-                exit;
+            // Redirect based on role
+            switch ($role) {
+                case 'admin':
+                    header("Location: dashboard/admin/dashboard.php");
+                    break;
+                case 'teacher':
+                    header("Location: teacher1\dashboard.php");
+                    break;
+                case 'student':
+                    header("Location: dashboard/student/dashboard.php");
+                    break;
             }
+            exit;
         } else {
             echo "<script>alert('Invalid password.');</script>";
         }
@@ -54,6 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -92,7 +95,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>

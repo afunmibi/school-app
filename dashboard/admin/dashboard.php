@@ -76,5 +76,21 @@ $admin_data = $result->fetch_assoc();
         <br><br>
         <!-- <a href="" ><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">View Pre-Registered Students</button></a> -->
     </div>
+
+    <!-- add teacher -->
+     <div class="container mt-5 mb-5 text-center">
+        <h4 class="text-primary mb-4 text-center">Manage Teacher</h4>
+        <p>Click the button below to add a new teacher.</p>
+        <a href="add_teacher.php" ><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">Manage Teacher</button></a>
+        <br><br>
+        </div>
+    
+<!-- Manage Student -->
+<div class="container mt-5 mb-5 text-center">
+        <h4 class="text-primary mb-4 text-center">Manage Students</h4>
+        <p>Click the button below to  Manage Students.</p>
+        <a href="add_student.php" ><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">Manage Students</button></a>
+        <br><br>
+        </div>
 </body>
 </html>
