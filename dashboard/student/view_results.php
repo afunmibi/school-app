@@ -15,6 +15,10 @@ $stmt = $conn->prepare($query);
 $stmt->bind_param("s", $student_id);
 $stmt->execute();
 $results = $stmt->get_result();
+$stmt = $conn->prepare("SELECT * FROM results WHERE student_id = ? AND status = 'approved'");
+$stmt->bind_param("s", $student_id);
+$stmt->execute();
+$results = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>

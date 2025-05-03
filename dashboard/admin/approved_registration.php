@@ -100,7 +100,7 @@ if ($conn->error) {
 </tbody>
             </table>
             <p class="text-center mt-4">
-                <a href="pending_registrations.php" class="btn btn-danger">Go Back</a>
+                <a href="dashboard.php" class="btn btn-danger">Go Back</a>
             </p>
         </div>
     </div>

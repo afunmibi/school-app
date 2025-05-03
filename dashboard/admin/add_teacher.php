@@ -119,7 +119,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <button type="submit" class="btn btn-success mt-2">Add Teacher</button>
                     </form>
                 </div>
+                <div class="text-center mt-4">
+                        <a href="./dashboard.php" class="btn btn-danger">Go Back</a>
+                    </div>
             </div>
+            
             <!-- All Teachers Table -->
             <div class="col">
                 <div class="card p-4 h-100">

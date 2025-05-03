@@ -1,60 +1,74 @@
 <?php
 session_start();
-include "../../config.php";
+include "../config.php";
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
+// ✅ Check if logged in as student
 if (!isset($_SESSION['student_id'])) {
-    header("Location: ../../student/login.php");
+    header("Location: ../login.php");
     exit;
 }
 
 $student_id = $_SESSION['student_id'];
 
-// Get student class
-$class_query = "SELECT class FROM students WHERE student_id = ?";
-$stmt = $conn->prepare($class_query);
-$stmt->bind_param("s", $student_id);
+// Fetch assignments for this student
+$stmt = $conn->prepare("SELECT a.subject, a.title, a.details, a.due_date, t.name AS teacher_name 
+                        FROM assignments a 
+                        JOIN teachers t ON a.teacher_id = t.id 
+                        WHERE a.student_id = ? 
+                        ORDER BY a.due_date ASC");
+$stmt->bind_param("i", $student_id);
 $stmt->execute();
 $result = $stmt->get_result();
-$student = $result->fetch_assoc();
-$class = $student['class'];
-
-// Fetch assignments for this class
-$query = "SELECT title, description, date_given FROM assignments WHERE class = ?";
-$stmt = $conn->prepare($query);
-$stmt->bind_param("s", $class);
-$stmt->execute();
-$assignments = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>View Assignments</title>
+    <title>My Assignments</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 <div class="container mt-5">
-    <div class="col-md-8 offset-md-2 bg-white shadow p-4 rounded">
-        <h4 class="text-center text-info mb-4">Assignments for Your Class</h4>
+    <h3 class="mb-4 text-primary">📘 My Assignments</h3>
 
-        <?php if ($assignments->num_rows > 0): ?>
-            <?php while ($row = $assignments->fetch_assoc()): ?>
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title"><?= htmlspecialchars($row['title']) ?></h5>
-                        <p class="card-text"><?= nl2br(htmlspecialchars($row['description'])) ?></p>
-                        <small class="text-muted">Given on: <?= htmlspecialchars($row['date_given']) ?></small>
-                    </div>
-                </div>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <p class="text-danger text-center">No assignments available.</p>
-        <?php endif; ?>
+    <?php if ($result->num_rows > 0): ?>
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Title</th>
+                    <th>Details</th>
+                    <th>Due Date</th>
+                    <th>Teacher</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php while ($row = $result->fetch_assoc()): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($row['subject']) ?></td>
+                        <td><?= htmlspecialchars($row['title']) ?></td>
+                        <td><?= nl2br(htmlspecialchars($row['details'])) ?></td>
+                        <td><?= htmlspecialchars($row['due_date']) ?></td>
+                        <td><?= htmlspecialchars($row['teacher_name']) ?></td>
+                        <td><?= date("F j, Y", strtotime($row['due_date'])) ?></td>
 
-        <hr>
-        <a href="dashboard.php" class="btn btn-secondary w-100">Back to Dashboard</a>
-    </div>
+                        <td>
+                        <form action="submit_assignment.php" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="assignment_id" value="<?= $row['id'] ?>">
+                        <input type="file" name="submission_file" required>
+                        <button type="submit" class="btn btn-sm btn-success mt-1">Submit</button>
+                    </form>
+
+                        </td>
+                    </tr>
+                <?php endwhile; ?>
+            </tbody>
+        </table>
+    <?php else: ?>
+        <p class="text-danger">No assignments found.</p>
+    <?php endif; ?>
 </div>
 </body>
 </html>
