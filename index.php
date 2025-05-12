@@ -12,9 +12,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($role == 'admin' || $role == 'teacher') {
         $stmt = $conn->prepare("SELECT * FROM users WHERE email = ? AND role = ?");
         $stmt->bind_param("ss", $username, $role);
-    } elseif ($role == 'student') {
-        $stmt = $conn->prepare("SELECT * FROM student_login WHERE unique_id = ?");
-        $stmt->bind_param("s", $username);
     } else {
         echo "<script>alert('Invalid role selected.');</script>";
         exit;
@@ -41,11 +38,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     header("Location: dashboard/admin/dashboard.php");
                     break;
                 case 'teacher':
-                    header("Location: teacher1\dashboard.php");
+                    header("Location: dashboard/teacher1/dashboard.php");
                     break;
-                case 'student':
-                    header("Location: dashboard/student/dashboard.php");
-                    break;
+               
             }
             exit;
         } else {
@@ -55,6 +50,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         echo "<script>alert('User not found.');</script>";
     }
 }
+
+// Close the database connection
+$conn->close();
+
 ?>
 
 <!DOCTYPE html>
@@ -62,6 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <title>Login</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/bootstrap-5.3.3-dist/bootstrap-5.3.3-dist/css/bootstrap.min.css">
 </head>
 <body class="bg-light">
     <div class="container mt-5">
@@ -76,7 +76,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             <option value="">-- Select Role --</option>
                             <option value="admin">Admin</option>
                             <option value="teacher">Teacher</option>
-                            <option value="student">Student</option>
+                            
                         </select>
                     </div>
 
@@ -91,9 +91,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100">Login</button>
+                    <p class="mt-3 mb-3"><a href="dashboard/student/student_login.php">Click here to Login as a Student</a></p>
+
+
                 </form>
+
             </div>
         </div>
+        
     </div>
 </body>
 </html>

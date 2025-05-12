@@ -1,5 +1,5 @@
 <?php
-include "../config.php";
+include "../../../config.php";
 
 $message = "";
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -7,36 +7,66 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (!isset($_POST['full_name'], $_POST['phone_no'], $_POST['email_address'])) {
         $message = "Please fill out all required fields.";
     } else {
-        // Safely trim inputs, default to empty string if null
-        $name = trim($_POST['full_name'] ?? '');
+        // Safely trim inputs
+        $full_name = trim($_POST['full_name'] ?? '');
         $phone = trim($_POST['phone_no'] ?? '');
         $email = trim($_POST['email_address'] ?? '');
 
         // Validate inputs
-        if (empty($name) || empty($phone) || empty($email)) {
+        if (empty($full_name) || empty($phone) || empty($email)) {
             $message = "All fields are required.";
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $message = "Invalid email format.";
         } else {
-            // Check if email already exists
-            $check = $conn->prepare("SELECT * FROM pre_registration1 WHERE email_address = ?");
-            $check->bind_param("s", $email);
+            // Check if email already exists in pre_registration1 or student_login
+            $check = $conn->prepare("SELECT id FROM pre_registration1 WHERE email_address = ? UNION SELECT id FROM student_login WHERE email_address = ?");
+            $check->bind_param("ss", $email, $email);
             $check->execute();
             $result = $check->get_result();
 
             if ($result->num_rows > 0) {
                 $message = "Email already registered.";
             } else {
-                // Generate unique ID
-                $unique_id = strtoupper(substr($name, 0, 3)) . rand(1000, 9999);
+                // Generate unique IDs
+                $unique_id = strtoupper(substr(preg_replace('/\s+/', '', $full_name), 0, 3)) . rand(1000, 9999);
+                $registration_id = 'REG' . rand(10000, 99999);
+                $plain_password = substr(str_shuffle("ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"), 0, 8);
 
-                $stmt = $conn->prepare("INSERT INTO pre_registration1 (full_name, phone_no, email_address, unique_id) VALUES (?, ?, ?, ?)");
-                $stmt->bind_param("ssss", $name, $phone, $email, $unique_id);
+                // Insert into pre_registration1
+                $stmt = $conn->prepare("INSERT INTO pre_registration1 (registration_id, full_name, phone_no, email_address, unique_id, temporary_password, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $status = 'Pending';
+                $stmt->bind_param("sssssss", $registration_id, $full_name, $phone, $email, $unique_id, $plain_password, $status);
 
                 if ($stmt->execute()) {
-                    $message = "Registration successful. Your Unique ID is: <strong>$unique_id</strong>. Please wait for admin approval.";
+                    // Insert into student_login
+                    $hashed_password = password_hash($plain_password, PASSWORD_DEFAULT);
+                    $login_stmt = $conn->prepare("INSERT INTO student_login (unique_id, email_address, full_name, pass) VALUES (?, ?, ?, ?)");
+                    $login_stmt->bind_param("ssss", $unique_id, $email, $full_name, $hashed_password);
+                    $login_stmt->execute();
+                    $login_stmt->close();
+
+                    // Insert or update students table with status from pre_registration1
+                    $student_stmt = $conn->prepare(
+                        "INSERT INTO students (registration_id, full_name, phone_no, email_address, unique_id, status)
+                         VALUES (?, ?, ?, ?, ?, ?)
+                         ON DUPLICATE KEY UPDATE 
+                            full_name = VALUES(full_name),
+                            phone_no = VALUES(phone_no),
+                            email_address = VALUES(email_address),
+                            status = VALUES(status)"
+                    );
+                    $student_stmt->bind_param("ssssss", $registration_id, $full_name, $phone, $email, $unique_id, $status);
+                    $student_stmt->execute();
+                    $student_stmt->close();
+
+                    $message = "Registration successful. Your details are as follows:<br><br>
+                        <strong>Your Registration ID:</strong> $registration_id<br>
+                        <strong>Your Unique ID:</strong> $unique_id<br>
+                        <strong>Your Temporary Password:</strong> $plain_password<br>
+                        <strong>Your Email:</strong> $email<br><br>
+                        Please keep your <strong>Registration ID</strong>, <strong>Unique ID</strong>, <strong>Email</strong>, and <strong>Password</strong> safe, as they will be used to log in once your registration is approved by the admin.";
                 } else {
-                    $message = "Error during registration: " . $stmt->error;
+                    $message = "Error saving pre-registration: " . $stmt->error;
                 }
                 $stmt->close();
             }
@@ -51,7 +81,7 @@ $conn->close();
 <html>
 <head>
     <title>Student Pre-Registration</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 <div class="container mt-5">

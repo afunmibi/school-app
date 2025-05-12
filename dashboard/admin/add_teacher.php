@@ -1,4 +1,5 @@
 <?php
+// filepath: c:\xampp\htdocs\PHP-Projects-Here\school-app\dashboard\admin\add_teacher.php
 session_start();
 include "../../config.php";
 
@@ -15,8 +16,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = password_hash(trim($_POST['password'] ?? ''), PASSWORD_DEFAULT);
     $role     = 'teacher';
-    $assigned_class = trim($_POST['assigned_class'] ?? '');
+    $class_assigned = trim($_POST['class_assigned'] ?? '');
     $assigned_subject = trim($_POST['assigned_subject'] ?? '');
+
+    // New fields for teacher_profile
+    $qualification = trim($_POST['qualification'] ?? '');
+    $phone_number = trim($_POST['phone_number'] ?? '');
+    $passport_photo = '';
+
+    // Handle passport photo upload
+    if (isset($_FILES['passport_photo']) && $_FILES['passport_photo']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = "../../uploads/teachers/";
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
+        $ext = pathinfo($_FILES['passport_photo']['name'], PATHINFO_EXTENSION);
+        $passport_photo = uniqid('teacher_', true) . '.' . $ext;
+        move_uploaded_file($_FILES['passport_photo']['tmp_name'], $upload_dir . $passport_photo);
+    }
 
     // Check if username or email already exists
     $stmt_check = $conn->prepare("SELECT id FROM users WHERE email = ? OR username = ?");
@@ -27,154 +44,176 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($result->num_rows > 0) {
         $message = "<div class='alert alert-danger'>Email or Username already exists. <a href='admin_dashboard.php' class='alert-link'>Go back</a></div>";
     } else {
-        $stmt = $conn->prepare("INSERT INTO users (full_name, email, username, password, role) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssss", $name, $email, $username, $password, $role);
+        // Insert into users table
+        $stmt = $conn->prepare("INSERT INTO users (full_name, email, username, password, role, class_assigned) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $name, $email, $username, $password, $role, $class_assigned);
         if ($stmt->execute()) {
             $teacher_id = $stmt->insert_id;
 
-            // Insert class assignment
-            $stmt2 = $conn->prepare("INSERT INTO teacher_classes (teacher_id, assigned_class) VALUES (?, ?)");
-            $stmt2->bind_param("is", $teacher_id, $assigned_class);
+            // Insert into teachers table
+            $stmt_teacher = $conn->prepare("INSERT INTO teachers (teacher_id, full_name, email, password, class_assigned) VALUES (?, ?, ?, ?, ?)");
+            $stmt_teacher->bind_param("issss", $teacher_id, $name, $email, $password, $class_assigned);
+            $stmt_teacher->execute();
+            $stmt_teacher->close();
+
+            // Insert into teacher_classes table
+            $stmt2 = $conn->prepare("INSERT INTO teacher_classes (teacher_id, full_name, class_assigned) VALUES (?, ?, ?)");
+            $stmt2->bind_param("iss", $teacher_id, $name, $class_assigned);
             $stmt2->execute();
+            $stmt2->close();
+
+            // Insert into teacher_profile table
+            $stmt_profile = $conn->prepare("INSERT INTO teacher_profile (teacher_id, qualification, phone_number, passport_photo, class_assigned) VALUES (?, ?, ?, ?, ?)");
+            $stmt_profile->bind_param("issss", $teacher_id, $qualification, $phone_number, $passport_photo, $class_assigned);
+            $stmt_profile->execute();
+            $stmt_profile->close();
 
             $message = "<div class='alert alert-success'>Teacher added successfully. <a href='admin_dashboard.php' class='alert-link'>Go back</a></div>";
         } else {
             $message = "<div class='alert alert-danger'>Error adding teacher.</div>";
         }
+        $stmt->close();
     }
+    $stmt_check->close();
 }
 ?>
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en">    
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Teacher</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
             min-height: 100vh;
         }
-        .card {
-            border: none;
-            border-radius: 1rem;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        .container {
+            margin-top: 50px;
+            max-width: 900px;
         }
+        .alert {
+            margin-bottom: 20px;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .form-control {
+            margin-bottom: 10px;
+        }   
         .form-label {
             font-weight: 500;
         }
-        .btn-success {
-            width: 100%;
-            font-weight: 600;
+        .btn-primary {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }           
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+            border-color: #1d4ed8;
         }
-        @media (max-width: 991.98px) {
-            .row-cols-lg-2 > .col {
-                flex: 0 0 100%;
-                max-width: 100%;
-            }
+        .btn-primary:focus {
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.5);
+        }   
+        .btn-primary:active {
+            background-color: #1e40af;
+            border-color: #1e3a8a;
+        }
+        .btn-primary:disabled {
+            background-color: #93c5fd;
+            border-color: #93c5fd;
         }
     </style>
 </head>
 <body>
-    <div class="container py-5">
-        <div class="row row-cols-1 row-cols-lg-2 g-4 align-items-start">
-            <!-- Add Teacher Form -->
-            <div class="col">
-                <div class="card p-4 h-100">
-                    <h3 class="text-center text-primary mb-4">Add Teacher</h3>
-                    <?php if (!empty($message)) echo $message; ?>
-                    <form method="POST" action="add_teacher.php" autocomplete="off">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Full Name</label>
-                            <input type="text" name="name" id="name" required class="form-control" placeholder="Enter full name">
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
-                            <input type="email" name="email" id="email" required class="form-control" placeholder="Enter email address">
-                        </div>
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" name="username" id="username" required class="form-control" placeholder="Choose a username">
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" name="password" id="password" required class="form-control" placeholder="Create a password">
-                        </div>
-                        <div class="mb-3">
-                            <label for="assigned_class" class="form-label">Assign Class</label>
-                            <select name="assigned_class" id="assigned_class" required class="form-select">
-                                <option value="">-- Select Class --</option>
-                                <option value="Basic 1">Basic 1</option>
-                                <option value="Basic 2">Basic 2</option>
-                                <option value="Basic 3">Basic 3</option>
-                                <option value="Basic 4">Basic 4</option>
-                                <option value="Basic 5">Basic 5</option>
-                                <option value="Basic 6">Basic 6</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <input type="text" name="assigned_subject" class="form-control" placeholder="or e.g. Mathematics" required readonly>
-                        </div>
-                        <button type="submit" class="btn btn-success mt-2">Add Teacher</button>
-                    </form>
-                </div>
-                <div class="text-center mt-4">
-                        <a href="./dashboard.php" class="btn btn-danger">Go Back</a>
-                    </div>
+    <div class="container">
+        <h2>Add Teacher</h2>
+        <?php if (!empty($message)) echo $message; ?>
+        <form method="POST" action="" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label class="form-label">Full Name</label>
+                <input type="text" name="name" required class="form-control" placeholder="Enter full name">
             </div>
-            
-            <!-- All Teachers Table -->
-            <div class="col">
-                <div class="card p-4 h-100">
-                    <h4 class="text-primary mb-4">All Teachers</h4>
-                    <table class="table table-bordered mt-3">
-                        <thead class="table-light">
-                            <tr>
-                                <th>#</th>
-                                <th>Full Name</th>
-                                <th>Email</th>
-                                <th>Username</th>
-                                <th>Class</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $query = "SELECT u.id, u.full_name, u.email, u.username, tc.assigned_class 
-                                      FROM users u
-                                      LEFT JOIN teacher_classes tc ON u.id = tc.teacher_id
-                                      WHERE u.role = 'teacher'";
-                            $result = $conn->query($query);
-                            $sn = 1;
-                            while ($row = $result->fetch_assoc()):
-                            ?>
-                                <tr>
-                                    <td><?= $sn++; ?></td>
-                                    <td><?= htmlspecialchars($row['full_name']); ?></td>
-                                    <td><?= htmlspecialchars($row['email']); ?></td>
-                                    <td><?= htmlspecialchars($row['username']); ?></td>
-                                    <td><?= htmlspecialchars($row['assigned_class'] ?? ''); ?></td>
-                                    <td>
-                                        <a href="edit_teacher.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-warning">Edit</a>
-                                        <a href="delete_teacher.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this teacher?');">Delete</a>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                    <?php if (isset($_GET['updated'])): ?>
-                        <div class="alert alert-success">Teacher updated successfully!</div>
-                    <?php endif; ?>
-                    <?php if (isset($_GET['deleted'])): ?>
-                        <div class="alert alert-danger">Teacher deleted successfully!</div>
-                    <?php endif; ?>
-                    <div class="text-center mt-4">
-                        <a href="./dashboard.php" class="btn btn-danger">Go Back</a>
-                    </div>
-                </div>
+            <div class="mb-3">
+                <label class="form-label">Email Address</label>
+                <input type="email" name="email" required class="form-control" placeholder="Enter email address">
             </div>
-        </div>
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input type="text" name="username" required class="form-control" placeholder="Choose a username">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" name="password" required class="form-control" placeholder="Create a password">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Qualification</label>
+                <input type="text" name="qualification" required class="form-control" placeholder="e.g. B.Ed, M.Sc">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Phone Number</label>
+                <input type="text" name="phone_number" required class="form-control" placeholder="Enter phone number">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Passport Photo</label>
+                <input type="file" name="passport_photo" accept="image/*" required class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Assign Class</label>
+                <select name="class_assigned" required class="form-select">
+                    <option value="">-- Select Class --</option>
+                    <option value="Basic 1">Basic 1</option>
+                    <option value="Basic 2">Basic 2</option>
+                    <option value="Basic 3">Basic 3</option>
+                    <option value="Basic 4">Basic 4</option>
+                    <option value="Basic 5">Basic 5</option>
+                    <option value="Basic 6">Basic 6</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Assign Subject</label>
+                <input type="text" name="assigned_subject" required class="form-control" placeholder="e.g. Mathematics">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Add Teacher</button>
+        </form>
+
+        <hr>
+        <h3 class="mt-5 mb-3">All Teachers</h3>
+        <table class="table table-bordered table-striped">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Username</th>
+                    <th>Class Assigned</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $sn = 1;
+                $teachers = $conn->query("SELECT * FROM users WHERE role='teacher' ORDER BY id DESC");
+                while ($row = $teachers->fetch_assoc()):
+                ?>
+                <tr>
+                    <td><?= $sn++ ?></td>
+                    <td><?= htmlspecialchars($row['full_name']) ?></td>
+                    <td><?= htmlspecialchars($row['email']) ?></td>
+                    <td><?= htmlspecialchars($row['username']) ?></td>
+                    <td><?= htmlspecialchars($row['class_assigned']) ?></td>
+                    <td>
+                        <a href="edit_teacher.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-sm">Edit</a>
+                        <a href="delete_teacher.php?id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
+                        <a href="update_teacher.php?id=<?= $row['id'] ?>" class="btn btn-info btn-sm">Update</a>
+                    </td>
+                </tr>
+                <?php endwhile; ?>
+            </tbody>
+        </table>
     </div>
 </body>
 </html>

@@ -1,4 +1,8 @@
 <?php
+session_start();
+include "../../config.php";
+
+// filepath: c:\xampp\htdocs\PHP-Projects-Here\school-app\dashboard\student\download_results.php
 require '../../vendor/autoload.php'; // DomPDF path
 
 use Dompdf\Dompdf;
@@ -13,13 +17,24 @@ if (!isset($_SESSION['student_id'])) {
 
 $student_id = $_SESSION['student_id'];
 
-// Get student full name
-$stmt = $conn->prepare("SELECT full_name FROM students WHERE student_id = ?");
+// Fetch student info (including passport)
+$stmt = $conn->prepare("SELECT full_name, passport_photo FROM students WHERE student_id = ?");
 $stmt->bind_param("s", $student_id);
 $stmt->execute();
 $student_result = $stmt->get_result();
 $student = $student_result->fetch_assoc();
-$full_name = $student['full_name'];
+$full_name = $student['full_name'] ?? '';
+$passport = $student['passport_photo'] ?? '';
+
+// Prepare passport image (if exists)
+$passport_src = '';
+if (!empty($passport)) {
+    $passport_path = '../../uploads/passports/' . $passport;
+    if (file_exists($passport_path)) {
+        $passport_data = base64_encode(file_get_contents($passport_path));
+        $passport_src = 'data:image/jpeg;base64,' . $passport_data;
+    }
+}
 
 // Fetch approved exam results
 $query = "SELECT exam_score FROM exam_results WHERE student_id = (SELECT id FROM students WHERE student_id = ?) AND status = 'approved'";
@@ -28,10 +43,24 @@ $stmt->bind_param("s", $student_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
+// Build HTML for PDF
 $html = '
     <h2 style="text-align:center;">Student Exam Results</h2>
-    <p><strong>Student Name:</strong> ' . htmlspecialchars($full_name) . '</p>
-    <p><strong>Student ID:</strong> ' . htmlspecialchars($student_id) . '</p>
+    <table width="100%" style="margin-bottom:20px;">
+        <tr>
+            <td width="80%">
+                <p><strong>Student Name:</strong> ' . htmlspecialchars($full_name) . '</p>
+                <p><strong>Student ID:</strong> ' . htmlspecialchars($student_id) . '</p>
+            </td>
+            <td width="20%" style="text-align:right;">';
+
+if (!empty($passport_src)) {
+    $html .= '<img src="' . $passport_src . '" width="100" height="100" style="border:1px solid #000;" />';
+}
+
+$html .= '</td>
+        </tr>
+    </table>
     <hr>
 ';
 
@@ -61,61 +90,7 @@ $options = new Options();
 $options->set('isHtml5ParserEnabled', true);
 $dompdf = new Dompdf($options);
 $dompdf->loadHtml($html);
-
-// (Optional) Set paper size and orientation
 $dompdf->setPaper('A4', 'portrait');
-
-// Render and stream the PDF
 $dompdf->render();
 $dompdf->stream("exam_results_" . $student_id . ".pdf", ["Attachment" => false]);
-
-// Get student full name and passport
-$stmt = $conn->prepare("SELECT full_name, passport_photo FROM students WHERE student_id = ?");
-$stmt->bind_param("s", $student_id);
-$stmt->execute();
-$student_result = $stmt->get_result();
-$student = $student_result->fetch_assoc();
-$full_name = $student['full_name'];
-$passport = $student['passport_photo']; // This should be the filename only
-
-$passport_path = '../../uploads/passports/' . $passport;
-
-if (file_exists($passport_path)) {
-    $passport_data = base64_encode(file_get_contents($passport_path));
-    $passport_src = 'data:image/jpeg;base64,' . $passport_data;
-} else {
-    $passport_src = '';
-}
-
 exit;
-?>
-
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-$html = '
-    <h2 style="text-align:center;">Student Exam Results</h2>
-    <table width="100%" style="margin-bottom:20px;">
-        <tr>
-            <td width="80%">
-                <p><strong>Student Name:</strong> ' . htmlspecialchars($full_name) . '</p>
-                <p><strong>Student ID:</strong> ' . htmlspecialchars($student_id) . '</p>
-            </td>
-            <td width="20%" style="text-align:right;">';
-
-if (!empty($passport_src)) {
-    $html .= '<img src="' . $passport_src . '" width="100" height="100" style="border:1px solid #000;" />';
-}
-
-$html .= '</td>
-        </tr>
-    </table>
-    <hr>
-';
- 
-</body>
-</html>

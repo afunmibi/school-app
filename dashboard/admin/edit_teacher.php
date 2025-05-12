@@ -1,4 +1,5 @@
 <?php
+// filepath: c:\xampp\htdocs\PHP-Projects-Here\school-app\dashboard\admin\edit_teacher.php
 include "../../config.php";
 
 if (!isset($_GET['id'])) {
@@ -8,7 +9,7 @@ if (!isset($_GET['id'])) {
 
 $id = intval($_GET['id']);
 
-// Fetch teacher
+// Fetch teacher from users table
 $stmt = $conn->prepare("SELECT * FROM users WHERE id = ? AND role = 'teacher'");
 $stmt->bind_param("i", $id);
 $stmt->execute();
@@ -21,39 +22,80 @@ if (!$teacher) {
 }
 
 // Fetch assigned class (if any)
-$class_stmt = $conn->prepare("SELECT assigned_class FROM teacher_classes WHERE teacher_id = ?");
+$class_stmt = $conn->prepare("SELECT class_assigned FROM teacher_classes WHERE teacher_id = ?");
 $class_stmt->bind_param("i", $id);
 $class_stmt->execute();
 $class_result = $class_stmt->get_result();
 $teacher_class = $class_result->fetch_assoc();
-$assigned_class = $teacher_class['assigned_class'] ?? '';
+$assigned_class = $teacher_class['class_assigned'] ?? '';
 
-// Handle form submission
+// Fetch teacher_profile info
+$profile_stmt = $conn->prepare("SELECT qualification, phone_number, passport_photo FROM teacher_profile WHERE teacher_id = ?");
+$profile_stmt->bind_param("i", $id);
+$profile_stmt->execute();
+$profile_result = $profile_stmt->get_result();
+$profile = $profile_result->fetch_assoc();
+$qualification = $profile['qualification'] ?? '';
+$phone_number = $profile['phone_number'] ?? '';
+$passport_photo = $profile['passport_photo'] ?? '';
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = trim($_POST['full_name']);
     $email = trim($_POST['email']);
     $username = trim($_POST['username']);
     $new_class = trim($_POST['assigned_class']);
+    $qualification = trim($_POST['qualification']);
+    $phone_number = trim($_POST['phone_number']);
 
-    // Update teacher info
-    $stmt = $conn->prepare("UPDATE users SET full_name = ?, email = ?, username = ? WHERE id = ?");
-    $stmt->bind_param("sssi", $name, $email, $username, $id);
-    $stmt->execute();
+    // Handle passport photo upload if provided
+    if (isset($_FILES['passport_photo']) && $_FILES['passport_photo']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = "../../uploads/teachers/";
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
+        $ext = pathinfo($_FILES['passport_photo']['name'], PATHINFO_EXTENSION);
+        $passport_photo = uniqid('teacher_', true) . '.' . $ext;
+        move_uploaded_file($_FILES['passport_photo']['tmp_name'], $upload_dir . $passport_photo);
+    }
 
-    // Update or insert assigned class
+    // Update users table (also update class_assigned)
+    $stmt_user = $conn->prepare("UPDATE users SET full_name = ?, email = ?, username = ?, class_assigned = ? WHERE id = ?");
+    $stmt_user->bind_param("ssssi", $name, $email, $username, $new_class, $id);
+    $stmt_user->execute();
+
+    // Update teachers table (also update class_assigned)
+    $stmt_teacher = $conn->prepare("UPDATE teachers SET full_name = ?, email = ?, class_assigned = ? WHERE teacher_id = ?");
+    $stmt_teacher->bind_param("sssi", $name, $email, $new_class, $id);
+    $stmt_teacher->execute();
+
+    // Update or insert assigned class in teacher_classes
     $check_stmt = $conn->prepare("SELECT id FROM teacher_classes WHERE teacher_id = ?");
     $check_stmt->bind_param("i", $id);
     $check_stmt->execute();
     $check_result = $check_stmt->get_result();
-
     if ($check_result->num_rows > 0) {
-        $update_class = $conn->prepare("UPDATE teacher_classes SET assigned_class = ? WHERE teacher_id = ?");
+        $update_class = $conn->prepare("UPDATE teacher_classes SET class_assigned = ? WHERE teacher_id = ?");
         $update_class->bind_param("si", $new_class, $id);
         $update_class->execute();
     } else {
-        $insert_class = $conn->prepare("INSERT INTO teacher_classes (teacher_id, assigned_class) VALUES (?, ?)");
+        $insert_class = $conn->prepare("INSERT INTO teacher_classes (teacher_id, class_assigned) VALUES (?, ?)");
         $insert_class->bind_param("is", $id, $new_class);
         $insert_class->execute();
+    }
+
+    // Update or insert teacher_profile (with class_assigned)
+    $check_profile = $conn->prepare("SELECT id FROM teacher_profile WHERE teacher_id = ?");
+    $check_profile->bind_param("i", $id);
+    $check_profile->execute();
+    $profile_result = $check_profile->get_result();
+    if ($profile_result->num_rows > 0) {
+        $update_profile = $conn->prepare("UPDATE teacher_profile SET qualification = ?, phone_number = ?, passport_photo = ?, class_assigned = ? WHERE teacher_id = ?");
+        $update_profile->bind_param("ssssi", $qualification, $phone_number, $passport_photo, $new_class, $id);
+        $update_profile->execute();
+    } else {
+        $insert_profile = $conn->prepare("INSERT INTO teacher_profile (teacher_id, qualification, phone_number, passport_photo, class_assigned) VALUES (?, ?, ?, ?, ?)");
+        $insert_profile->bind_param("issss", $id, $qualification, $phone_number, $passport_photo, $new_class);
+        $insert_profile->execute();
     }
 
     header("Location: dashboard.php?updated=1");
@@ -71,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <div class="container mt-5">
     <div class="col-md-6 offset-md-3 bg-white p-4 shadow rounded">
         <h4 class="mb-3 text-primary">Edit Teacher</h4>
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             <div class="mb-3">
                 <label>Name</label>
                 <input type="text" name="full_name" class="form-control" value="<?= htmlspecialchars($teacher['full_name']) ?>" required>
@@ -96,6 +138,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     }
                     ?>
                 </select>
+            </div>
+            <div class="mb-3">
+                <label>Qualification</label>
+                <input type="text" name="qualification" class="form-control" value="<?= htmlspecialchars($qualification) ?>">
+            </div>
+            <div class="mb-3">
+                <label>Phone Number</label>
+                <input type="text" name="phone_number" class="form-control" value="<?= htmlspecialchars($phone_number) ?>">
+            </div>
+            <div class="mb-3">
+                <label>Passport Photo</label>
+                <?php if ($passport_photo): ?>
+                    <div class="mb-2">
+                        <img src="../../uploads/teachers/<?= htmlspecialchars($passport_photo) ?>" alt="Passport" style="max-width:80px;">
+                    </div>
+                <?php endif; ?>
+                <input type="file" name="passport_photo" class="form-control">
             </div>
             <button type="submit" class="btn btn-primary">Update Teacher</button>
             <a href="dashboard.php" class="btn btn-secondary">Cancel</a>

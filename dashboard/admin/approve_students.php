@@ -1,89 +1,100 @@
 <?php
-session_start();
-include "../../config.php";
+include "../config.php";
 
-// Redirect if not an admin
-if ($_SESSION['role'] != 'admin') {
-    header("Location: ../../index.php");
+$message = "";
+$action = $_GET['action'] ?? '';
+$id = $_GET['id'] ?? null;
+
+// 1. Handle Pre-registration
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (!isset($_POST['full_name'], $_POST['phone_no'], $_POST['email_address'])) {
+        $message = "Please fill out all required fields.";
+    } else {
+        $name = trim($_POST['full_name']);
+        $phone = trim($_POST['phone_no']);
+        $email = trim($_POST['email_address']);
+
+        if (empty($name) || empty($phone) || empty($email)) {
+            $message = "All fields are required.";
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $message = "Invalid email format.";
+        } else {
+            // Check for duplicate email
+            $check = $conn->prepare("SELECT * FROM pre_registration1 WHERE email_address = ?");
+            $check->bind_param("s", $email);
+            $check->execute();
+            $result = $check->get_result();
+
+            if ($result->num_rows > 0) {
+                $message = "Email already registered.";
+            } else {
+                // Generate unique ID and random password
+                $unique_id = strtoupper(substr($name, 0, 3)) . rand(1000, 9999);
+                $plain_password = substr(str_shuffle("ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"), 0, 8);
+
+                // Insert into pre_registration1
+                $stmt = $conn->prepare("INSERT INTO pre_registration1 (full_name, phone_no, email_address, unique_id, raw_password, status) VALUES (?, ?, ?, ?, ?, 'pending')");
+                $stmt->bind_param("sssss", $name, $phone, $email, $unique_id, $plain_password);
+
+                if ($stmt->execute()) {
+                    $message = "Registration successful!<br>
+                        <strong>Your Unique ID:</strong> $unique_id<br>
+                        <strong>Your Temporary Password:</strong> $plain_password<br>
+                        Please keep them safe. You will be able to log in once approved by the admin.";
+                } else {
+                    $message = "Error during registration: " . $stmt->error;
+                }
+                $stmt->close();
+            }
+            $check->close();
+        }
+    }
+}
+
+// 2. Handle Admin Approval
+if ($action == 'approve' && $id) {
+    // Update status to approved
+    $stmt = $conn->prepare("UPDATE pre_registration1 SET status = 'approved' WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+
+    // Fetch student data
+    $stmt = $conn->prepare("SELECT * FROM pre_registration1 WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $student = $result->fetch_assoc();
+
+    if ($student) {
+        $hashed_password = password_hash($student['raw_password'], PASSWORD_DEFAULT);
+
+        // Update or Insert into student_login
+        $check_login = $conn->prepare("SELECT * FROM student_login WHERE pre_reg_id = ?");
+        $check_login->bind_param("i", $id);
+        $check_login->execute();
+        $login_result = $check_login->get_result();
+
+        if ($login_result->num_rows > 0) {
+            // Update existing login
+            $update_login = $conn->prepare("UPDATE student_login SET unique_id = ?, email = ?, password = ? WHERE pre_reg_id = ?");
+            $update_login->bind_param("sssi", $student['unique_id'], $student['email_address'], $hashed_password, $id);
+            $update_login->execute();
+        } else {
+            // Insert new login
+            $insert_login = $conn->prepare("INSERT INTO student_login (pre_reg_id, unique_id, email, password) VALUES (?, ?, ?, ?)");
+            $insert_login->bind_param("isss", $id, $student['unique_id'], $student['email_address'], $hashed_password);
+            $insert_login->execute();
+        }
+
+        // Insert into students table
+        $stmt_students = $conn->prepare("INSERT INTO students (pre_reg_id, full_name, phone_no, email_address, unique_id, status) VALUES (?, ?, ?, ?, ?, 'approved')");
+        $stmt_students->bind_param("issss", $id, $student['full_name'], $student['phone_no'], $student['email_address'], $student['unique_id']);
+        $stmt_students->execute();
+    }
+
+    header("Location: approve_students.php");
     exit;
 }
 
-// Fetch pending pre-registrations
-$query = "SELECT * FROM pre_registration WHERE status = 'pending'";
-$result = $conn->query($query);
-
-if (isset($_GET['action']) && isset($_GET['id'])) {
-    $id = $_GET['id'];
-    $action = $_GET['action'];
-    
-    if ($action == 'approve') {
-        // Update the status to approved
-        $stmt = $conn->prepare("UPDATE pre_registration SET status = 'approved' WHERE id = ?");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        
-        // Create student login
-        $unique_id = $conn->prepare("SELECT unique_id FROM pre_registration WHERE id = ?");
-        $unique_id->bind_param("i", $id);
-        $unique_id->execute();
-        $result = $unique_id->get_result();
-        $student = $result->fetch_assoc();
-        
-        $password = password_hash('defaultPassword123', PASSWORD_DEFAULT); // default password, can be changed
-        $stmt_login = $conn->prepare("INSERT INTO student_login (pre_reg_id, unique_id, password) VALUES (?, ?, ?)");
-        $stmt_login->bind_param("iss", $id, $student['unique_id'], $password);
-        $stmt_login->execute();
-        
-        header("Location: approve_students.php");
-        exit;
-    } elseif ($action == 'reject') {
-        // Update the status to rejected
-        $stmt = $conn->prepare("UPDATE pre_registration SET status = 'rejected' WHERE id = ?");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        
-        header("Location: approve_students.php");
-        exit;
-    }
-}
+$conn->close();
 ?>
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Admin Dashboard - Approve Students</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <div class="container mt-5">
-        <h4 class="text-primary mb-4">Pending Pre-Registrations</h4>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php while ($row = $result->fetch_assoc()) { ?>
-                <tr>
-                    <td><?php echo $row['id']; ?></td>
-                    <td><?php echo $row['full_name']; ?></td>
-                    <td><?php echo $row['email']; ?></td>
-                    <td><?php echo $row['phone']; ?></td>
-                    <td><?php echo $row['status']; ?></td>
-                    <td>
-                        <a href="?action=approve&id=<?php echo $row['id']; ?>" class="btn btn-success">Approve</a>
-                        <a href="?action=reject&id=<?php echo $row['id']; ?>" class="btn btn-danger">Reject</a>
-                    </td>
-                </tr>
-                <?php } ?>
-            </tbody>
-        </table>
-    </div>
-</body>
-</html>

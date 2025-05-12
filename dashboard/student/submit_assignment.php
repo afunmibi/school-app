@@ -1,12 +1,9 @@
 <?php
 session_start();
-include "../config.php";
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-// Only students allowed
+include "../../config.php";
+// Check if student is logged in
 if (!isset($_SESSION['student_id'])) {
-    header("Location: ../login.php");
+    header("Location: ../../../index.php");
     exit;
 }
 

@@ -1,6 +1,12 @@
 <?php
 session_start();
-include "../config.php";
+include "../../config.php";
+
+// Redirect if not logged in as admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header("Location: ../../index.php");
+    exit;
+}
 require '../vendor/autoload.php';  // If you're using Composer. Otherwise, include PhpSpreadsheet manually.
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;

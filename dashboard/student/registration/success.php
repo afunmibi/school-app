@@ -1,21 +1,22 @@
 <?php
 session_start();
-include "../config.php";
+include "../../../config.php";
 
-// Redirect if not logged in as student or no student session
-if (!isset($_SESSION['student_id'])) {
-    header("Location: ../login.php");
+// Use unique_id from session for lookup
+$unique_id = $_SESSION['student_id'] ?? null;
+if (!$unique_id) {
+    header("Location: ../../../login.php");
     exit;
 }
 
-// Fetch student pre-registration data
-$student_id = $_SESSION['student_id'];
-$query = "SELECT * FROM pre_registration WHERE id = (SELECT pre_reg_id FROM student_login WHERE student_id = ?)";
+// Fetch student data using unique_id
+$query = "SELECT * FROM students WHERE unique_id = ?";
 $stmt = $conn->prepare($query);
-$stmt->bind_param("i", $student_id);
+$stmt->bind_param("s", $unique_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $student_data = $result->fetch_assoc();
+$stmt->close();
 
 // Check if PDF exists
 $pdf_path = '../pdfs/student_' . $student_data['unique_id'] . '.pdf';
@@ -33,10 +34,15 @@ $pdf_path = '../pdfs/student_' . $student_data['unique_id'] . '.pdf';
     <div class="container mt-5">
         <div class="col-md-8 offset-md-2 p-4 shadow rounded bg-white">
             <h4 class="text-primary mb-4 text-center">Registration Completed Successfully</h4>
-            <p class="text-center">Congratulations, your registration is complete! Your unique ID is: <strong><?php echo $student_data['unique_id']; ?></strong></p>
+            <p class="text-center">
+                Congratulations, your registration is complete! Your unique ID is:
+                <strong><?= htmlspecialchars($student_data['unique_id'] ?? '') ?></strong>
+            </p>
             <p class="text-center">Click the link below to download your registration PDF:</p>
-            <?php if (file_exists($pdf_path)) : ?>
-                <p class="text-center"><a href="<?php echo $pdf_path; ?>" class="btn btn-success" download>Download PDF</a></p>
+            <?php if (!empty($student_data['unique_id']) && file_exists($pdf_path)) : ?>
+                <p class="text-center">
+                    <a href="<?= htmlspecialchars($pdf_path) ?>" class="btn btn-success" download>Download PDF</a>
+                </p>
             <?php else: ?>
                 <p class="text-center text-danger">PDF not generated yet. Please try again later.</p>
             <?php endif; ?>
