@@ -160,7 +160,7 @@ $teacher_photo = !empty($teacher_data['profile_photo'])
                     <a class="nav-link" href="record_results.php">Submit Student Results</a>
                 </li>
             </ul>
-            <a href="../logout.php" class="btn btn-danger logout-btn mt-auto mb-3">Logout</a>
+            <a href="../../logout.php" class="btn btn-danger logout-btn mt-auto mb-3">Logout</a>
         </nav>
         <!-- Main Content -->
         <main class="col-lg-9 col-md-8 ms-sm-auto px-4 py-4 main-content" id="mainContent">
