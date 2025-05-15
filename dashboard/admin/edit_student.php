@@ -24,43 +24,67 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Collect inputs
     $id                 = $_POST['id'];
-    $full_name          = trim($_POST['name'] ?? '');
-    $email              = trim($_POST['email'] ?? '');
-    $class              = trim($_POST['class'] ?? '');
+    $full_name          = trim($_POST['full_name'] ?? '');
+    $email_address      = trim($_POST['email_address'] ?? '');
+    $class_assigned     = trim($_POST['class_assigned'] ?? '');
+    $student_id         = trim($_POST['student_id'] ?? '');
+    $phone_no           = trim($_POST['phone_no'] ?? '');
     $address            = trim($_POST['address'] ?? '');
     $age                = trim($_POST['age'] ?? '');
     $state_of_origin    = trim($_POST['state_of_origin'] ?? '');
     $lga_origin         = trim($_POST['lga_origin'] ?? '');
     $state_of_residence = trim($_POST['state_of_residence'] ?? '');
-    $lga_residence      = trim($_POST['lga_residence'] ?? '');
+    $lga_of_residence   = trim($_POST['lga_of_residence'] ?? '');
+    $parent_name        = trim($_POST['parent_name'] ?? '');
+    $parent_address     = trim($_POST['parent_address'] ?? '');
+    $parent_occupation  = trim($_POST['parent_occupation'] ?? '');
     $religion           = trim($_POST['religion'] ?? '');
-    $phone_no           = trim($_POST['phone_no'] ?? '');
+    $child_comment      = trim($_POST['child_comment'] ?? '');
     $status             = trim($_POST['status'] ?? 'active');
-    $date_registered    = date("Y-m-d");
 
-    // Handle file upload
+    // File uploads (optional, keep old if not uploaded)
     $passport_photo = $student['passport_photo'] ?? '';
     if (isset($_FILES['passport_photo']) && $_FILES['passport_photo']['error'] === 0) {
         $target_dir = "../../uploads/passports/";
+        if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
         $photo_name = time() . "_" . basename($_FILES['passport_photo']['name']);
         $upload_path = $target_dir . $photo_name;
-
         if (move_uploaded_file($_FILES['passport_photo']['tmp_name'], $upload_path)) {
             $passport_photo = $upload_path;
         }
     }
 
+    $birth_certificate = $student['birth_certificate'] ?? '';
+    if (isset($_FILES['birth_certificate']) && $_FILES['birth_certificate']['error'] === 0) {
+        $target_dir = "../../uploads/birth_certificates/";
+        if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+        $file_name = time() . "_" . basename($_FILES['birth_certificate']['name']);
+        $upload_path = $target_dir . $file_name;
+        if (move_uploaded_file($_FILES['birth_certificate']['tmp_name'], $upload_path)) {
+            $birth_certificate = $upload_path;
+        }
+    }
+
+    $testimonial = $student['testimonial'] ?? '';
+    if (isset($_FILES['testimonial']) && $_FILES['testimonial']['error'] === 0) {
+        $target_dir = "../../uploads/testimonials/";
+        if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+        $file_name = time() . "_" . basename($_FILES['testimonial']['name']);
+        $upload_path = $target_dir . $file_name;
+        if (move_uploaded_file($_FILES['testimonial']['tmp_name'], $upload_path)) {
+            $testimonial = $upload_path;
+        }
+    }
+
     // Update student
     $stmt = $conn->prepare("UPDATE students SET 
-        full_name = ?, address = ?, age = ?, state_of_origin = ?, lga_origin = ?, 
-        state_of_residence = ?, lga_residence = ?, passport_photo = ?, religion = ?, 
-        class = ?, date_registered = ?, phone_no = ?, email_address = ?, status = ? 
-        WHERE id = ?");
+        full_name=?, phone_no=?, email_address=?, status=?, address=?, age=?, state_of_origin=?, lga_origin=?, state_of_residence=?, lga_of_residence=?, parent_name=?, parent_address=?, parent_occupation=?, religion=?, child_comment=?, birth_certificate=?, testimonial=?, passport_photo=?, class_assigned=?, student_id=?
+        WHERE id=?");
 
-    $stmt->bind_param("ssssssssssssssi", 
-        $full_name, $address, $age, $state_of_origin, $lga_origin, 
-        $state_of_residence, $lga_residence, $passport_photo, $religion,
-        $class, $date_registered, $phone_no, $email, $status, $id
+    $stmt->bind_param(
+        "ssssssssssssssssssssi",
+        $full_name, $phone_no, $email_address, $status, $address, $age, $state_of_origin, $lga_origin, $state_of_residence, $lga_of_residence,
+        $parent_name, $parent_address, $parent_occupation, $religion, $child_comment, $birth_certificate, $testimonial, $passport_photo, $class_assigned, $student_id, $id
     );
 
     if ($stmt->execute()) {
@@ -75,7 +99,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -100,36 +123,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <form method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="id" value="<?= $student['id'] ?? '' ?>">
 
-                    <div class="mb-2"><label>Full Name</label><input type="text" name="name" value="<?= $student['full_name'] ?? '' ?>" class="form-control" required></div>
-                    <div class="mb-2"><label>Email</label><input type="email" name="email" value="<?= $student['email_address'] ?? '' ?>" class="form-control" required></div>
-                    <div class="mb-2"><label>Class</label>
-                        <select name="class" class="form-select" required>
-                            <option value="">--Select--</option>
-                            <?php
-                            $classes = ['Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6'];
-                            foreach ($classes as $cls) {
-                                $selected = ($student['class'] ?? '') === $cls ? 'selected' : '';
-                                echo "<option value='$cls' $selected>$cls</option>";
-                            }
-                            ?>
-                        </select>
-                    </div>
-                    <div class="mb-2"><label>Address</label><input type="text" name="address" value="<?= $student['address'] ?? '' ?>" class="form-control"></div>
-                    <div class="mb-2"><label>Age</label><input type="number" name="age" value="<?= $student['age'] ?? '' ?>" class="form-control"></div>
-                    <div class="mb-2"><label>State of Origin</label><input type="text" name="state_of_origin" value="<?= $student['state_of_origin'] ?? '' ?>" class="form-control"></div>
-                    <div class="mb-2"><label>LGA of Origin</label><input type="text" name="lga_origin" value="<?= $student['lga_origin'] ?? '' ?>" class="form-control"></div>
-                    <div class="mb-2"><label>State of Residence</label><input type="text" name="state_of_residence" value="<?= $student['state_of_residence'] ?? '' ?>" class="form-control"></div>
-                    <div class="mb-2"><label>LGA of Residence</label><input type="text" name="lga_residence" value="<?= $student['lga_residence'] ?? '' ?>" class="form-control"></div>
-                    <div class="mb-2"><label>Religion</label><input type="text" name="religion" value="<?= $student['religion'] ?? '' ?>" class="form-control"></div>
-                    <div class="mb-2"><label>Phone No</label><input type="text" name="phone_no" value="<?= $student['phone_no'] ?? '' ?>" class="form-control"></div>
-                    <div class="mb-2"><label>Passport Photo</label><input type="file" name="passport_photo" class="form-control" accept="image/*"></div>
+                    <div class="mb-2"><label>Full Name</label><input type="text" name="full_name" value="<?= htmlspecialchars($student['full_name'] ?? '') ?>" class="form-control" required></div>
+                    <div class="mb-2"><label>Phone No</label><input type="text" name="phone_no" value="<?= htmlspecialchars($student['phone_no'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>Email</label><input type="email" name="email_address" value="<?= htmlspecialchars($student['email_address'] ?? '') ?>" class="form-control" required></div>
                     <div class="mb-2"><label>Status</label>
                         <select name="status" class="form-select">
                             <option value="active" <?= ($student['status'] ?? '') === 'active' ? 'selected' : '' ?>>Active</option>
                             <option value="inactive" <?= ($student['status'] ?? '') === 'inactive' ? 'selected' : '' ?>>Inactive</option>
                         </select>
                     </div>
-                    <a href=""> <button class="btn btn-success w-100" name="submit">Update Student</button></a>
+                    <div class="mb-2"><label>Address</label><input type="text" name="address" value="<?= htmlspecialchars($student['address'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>Age</label><input type="number" name="age" value="<?= htmlspecialchars($student['age'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>State of Origin</label><input type="text" name="state_of_origin" value="<?= htmlspecialchars($student['state_of_origin'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>LGA of Origin</label><input type="text" name="lga_origin" value="<?= htmlspecialchars($student['lga_origin'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>State of Residence</label><input type="text" name="state_of_residence" value="<?= htmlspecialchars($student['state_of_residence'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>LGA of Residence</label><input type="text" name="lga_of_residence" value="<?= htmlspecialchars($student['lga_of_residence'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>Parent Name</label><input type="text" name="parent_name" value="<?= htmlspecialchars($student['parent_name'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>Parent Address</label><input type="text" name="parent_address" value="<?= htmlspecialchars($student['parent_address'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>Parent Occupation</label><input type="text" name="parent_occupation" value="<?= htmlspecialchars($student['parent_occupation'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>Religion</label><input type="text" name="religion" value="<?= htmlspecialchars($student['religion'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>Child Comment</label><input type="text" name="child_comment" value="<?= htmlspecialchars($student['child_comment'] ?? '') ?>" class="form-control"></div>
+                    <div class="mb-2"><label>Birth Certificate</label><input type="file" name="birth_certificate" class="form-control" accept=".pdf,.jpg,.jpeg,.png"></div>
+                    <div class="mb-2"><label>Testimonial</label><input type="file" name="testimonial" class="form-control" accept=".pdf,.jpg,.jpeg,.png"></div>
+                    <div class="mb-2"><label>Passport Photo</label><input type="file" name="passport_photo" class="form-control" accept="image/*"></div>
+                    <div class="mb-2"><label>Class Assigned</label>
+                        <select name="class_assigned" class="form-select" required>
+                            <option value="">--Select--</option>
+                            <?php
+                            $classes = ['Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6'];
+                            foreach ($classes as $cls) {
+                                $selected = ($student['class_assigned'] ?? '') === $cls ? 'selected' : '';
+                                echo "<option value='$cls' $selected>$cls</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    <div class="mb-2"><label>Student ID</label><input type="text" name="student_id" value="<?= htmlspecialchars($student['student_id'] ?? '') ?>" class="form-control"></div>
+                    <button class="btn btn-success w-100" name="submit">Update Student</button>
                     <div class="text-center mt-3">
                         <a href="dashboard.php" class="btn btn-secondary">Back to Dashboard</a>
                     </div>
@@ -154,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <tr>
                             <td><?= $sn++ ?></td>
                             <td><?= htmlspecialchars($row['full_name']) ?></td>
-                            <td><?= htmlspecialchars($row['class']) ?></td>
+                            <td><?= htmlspecialchars($row['class_assigned']) ?></td>
                             <td><?= htmlspecialchars($row['email_address']) ?></td>
                             <td>
                                 <a href="edit_student.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-warning">Edit</a>

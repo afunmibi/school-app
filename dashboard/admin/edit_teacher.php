@@ -1,5 +1,4 @@
 <?php
-// filepath: c:\xampp\htdocs\PHP-Projects-Here\school-app\dashboard\admin\edit_teacher.php
 include "../../config.php";
 
 if (!isset($_GET['id'])) {
@@ -46,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $new_class = trim($_POST['assigned_class']);
     $qualification = trim($_POST['qualification']);
     $phone_number = trim($_POST['phone_number']);
+    $new_password = trim($_POST['password']);
 
     // Handle passport photo upload if provided
     if (isset($_FILES['passport_photo']) && $_FILES['passport_photo']['error'] === UPLOAD_ERR_OK) {
@@ -58,9 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         move_uploaded_file($_FILES['passport_photo']['tmp_name'], $upload_dir . $passport_photo);
     }
 
-    // Update users table (also update class_assigned)
-    $stmt_user = $conn->prepare("UPDATE users SET full_name = ?, email = ?, username = ?, class_assigned = ? WHERE id = ?");
-    $stmt_user->bind_param("ssssi", $name, $email, $username, $new_class, $id);
+    // Update users table (also update class_assigned and password if provided)
+    if (!empty($new_password)) {
+        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+        $stmt_user = $conn->prepare("UPDATE users SET full_name = ?, email = ?, username = ?, class_assigned = ?, password = ? WHERE id = ?");
+        $stmt_user->bind_param("sssssi", $name, $email, $username, $new_class, $hashed_password, $id);
+    } else {
+        $stmt_user = $conn->prepare("UPDATE users SET full_name = ?, email = ?, username = ?, class_assigned = ? WHERE id = ?");
+        $stmt_user->bind_param("ssssi", $name, $email, $username, $new_class, $id);
+    }
     $stmt_user->execute();
 
     // Update teachers table (also update class_assigned)
@@ -155,6 +161,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 <?php endif; ?>
                 <input type="file" name="passport_photo" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label>New Password <small class="text-muted">(leave blank to keep current)</small></label>
+                <input type="password" name="password" class="form-control" autocomplete="new-password">
             </div>
             <button type="submit" class="btn btn-primary">Update Teacher</button>
             <a href="dashboard.php" class="btn btn-secondary">Cancel</a>

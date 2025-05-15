@@ -188,46 +188,68 @@ $teacher_photo = !empty($teacher_data['profile_photo'])
                         </div>
                     </div>
                 </div>
-                <!-- display student assignment -->
-                <div class="col-12 mt-4">
-                    <h4 class="text-center">Student Assignments</h4>
-                    <div class="alert alert-info" role="alert">
-                        Here are the assignments you have posted for your students in <strong><?= htmlspecialchars($class_assigned ?: 'Not Assigned') ?></strong>.
-                    </div>
-                    <h5 class="mt-4">Submitted Assignments</h5>
-                    <?php
-                    $submission_sql = "
-                        SELECT s.student_id, s.submission_file, s.submission_date, a.title AS assignment_title 
-                        FROM submissions s
-                        JOIN assignments a ON s.assignment_id = a.id
-                        WHERE a.teacher_id = ? AND a.class = ?
-                        ORDER BY s.submission_date DESC
-                    ";
-                    $stmt = $conn->prepare($submission_sql);
-                    $stmt->bind_param("is", $teacher_id, $class_assigned);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
+                
+<!-- display student assignment -->
+<div class="col-12 mt-4">
+    <h4 class="text-center">Student Assignments</h4>
+    <div class="alert alert-info" role="alert">
+        Here are the assignments you have posted for your students in <strong><?= htmlspecialchars($class_assigned ?: 'Not Assigned') ?></strong>.
+    </div>
+    <h5 class="mt-4">Submitted Assignments</h5>
+    <?php
+    // Fetch assignments/submissions for this teacher and class
+    $stmt = $conn->prepare("
+        SELECT a.*, s.full_name
+        FROM assignments a
+        LEFT JOIN students s ON a.student_id = s.id
+        WHERE a.teacher_id = ? AND a.class = ?
+        ORDER BY a.date_posted DESC
+    ");
+    $stmt->bind_param("is", $teacher_id, $class_assigned);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-                    if ($result->num_rows > 0):
-                        while ($row = $result->fetch_assoc()):
-                    ?>
-                        <div class="border p-2 mb-2">
-                            <strong><?= htmlspecialchars($row['student_id']) ?></strong> submitted 
-                            <em><?= htmlspecialchars($row['assignment_title']) ?></em> on 
-                            <?= htmlspecialchars($row['submission_date']) ?>:
-                            <?php if (!empty($row['submission_file'])): ?>
-                                <a href="<?= htmlspecialchars($row['submission_file']) ?>" target="_blank">📄 View</a>
-                            <?php else: ?>
-                                <span class="text-danger">Not submitted</span>
-                            <?php endif; ?>
-                        </div>
-                    <?php
-                        endwhile;
-                    else:
-                        echo "<p>No submissions yet.</p>";
-                    endif;
-                    ?>
-                </div>
+    if ($result->num_rows > 0): ?>
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Assignment Title</th>
+                    <th>Student Name</th>
+                    <th>Student ID</th>
+                    <th>Submission File</th>
+                    <th>Text Assignment</th>
+                    <th>Date Posted</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php while ($row = $result->fetch_assoc()): ?>
+                <tr>
+                    <td><?= htmlspecialchars($row['title']) ?></td>
+                    <td><?= htmlspecialchars($row['full_name'] ?? '-') ?></td>
+                    <td><?= htmlspecialchars($row['student_id'] ?? '-') ?></td>
+                    <td>
+                        <?php if (!empty($row['submission_file'])): ?>
+                            <a href="<?= htmlspecialchars($row['submission_file']) ?>" target="_blank">📄 View</a>
+                        <?php else: ?>
+                            <span class="text-danger">Not submitted</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if (!empty($row['submission_text'])): ?>
+                            <?= nl2br(htmlspecialchars($row['submission_text'])) ?>
+                        <?php else: ?>
+                            <span class="text-secondary">No Text</span>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= htmlspecialchars($row['date_posted']) ?></td>
+                </tr>
+            <?php endwhile; ?>
+            </tbody>
+        </table>
+    <?php else: ?>
+        <p>No submissions yet.</p>
+    <?php endif; ?>
+</div>
             </div>
         </main>
     </div>

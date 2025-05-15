@@ -9,13 +9,11 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
     header("Location: ../../index.php");
     exit;
 }
-include "../config.php";
-require '../vendor/autoload.php';  // If you're using Composer
+
+require '../../vendor/autoload.php'; // Correct path for Composer autoload
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-
-
 
 // Get filters (class, start date, end date)
 $class_filter = isset($_GET['class']) ? $_GET['class'] : '';
@@ -23,32 +21,37 @@ $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
 $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 
 // Query to fetch students' data based on class and date filters
-$query = "SELECT students.full_name, students.class, 
+$query = "SELECT students.full_name, students.class_assigned AS class, 
                  assessments.assessment_score, 
                  exam_results.exam_score, exam_results.result_date
           FROM students
           LEFT JOIN assessments ON students.id = assessments.student_id
           LEFT JOIN exam_results ON students.id = exam_results.student_id";
 
-if ($class_filter) {
-    $query .= " WHERE students.class = ?";
-}
+$conditions = [];
+$params = [];
+$types = "";
 
+// Build WHERE clause dynamically
+if ($class_filter) {
+    $conditions[] = "students.class_assigned = ?";
+    $params[] = $class_filter;
+    $types .= "s";
+}
 if ($start_date && $end_date) {
-    $query .= ($class_filter ? " AND" : " WHERE") . " exam_results.result_date BETWEEN ? AND ?";
+    $conditions[] = "exam_results.result_date BETWEEN ? AND ?";
+    $params[] = $start_date;
+    $params[] = $end_date;
+    $types .= "ss";
+}
+if ($conditions) {
+    $query .= " WHERE " . implode(" AND ", $conditions);
 }
 
 $stmt = $conn->prepare($query);
-
-// Bind parameters based on the filters
-if ($class_filter && $start_date && $end_date) {
-    $stmt->bind_param("sss", $class_filter, $start_date, $end_date);
-} elseif ($class_filter) {
-    $stmt->bind_param("s", $class_filter);
-} elseif ($start_date && $end_date) {
-    $stmt->bind_param("ss", $start_date, $end_date);
+if ($params) {
+    $stmt->bind_param($types, ...$params);
 }
-
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -66,8 +69,8 @@ $sheet->setCellValue('A1', 'Full Name')
 $row = 2;
 while ($data = $result->fetch_assoc()) {
     // Calculate total score (30% assessment, 70% exam)
-    $assessment_score = $data['assessment_score'] ?? 0;
-    $exam_score = $data['exam_score'] ?? 0;
+    $assessment_score = is_numeric($data['assessment_score']) ? $data['assessment_score'] : 0;
+    $exam_score = is_numeric($data['exam_score']) ? $data['exam_score'] : 0;
     $total_score = ($assessment_score * 0.3) + ($exam_score * 0.7);
 
     $sheet->setCellValue('A' . $row, $data['full_name'])
@@ -88,4 +91,3 @@ header('Cache-Control: max-age=0');
 $writer = new Xlsx($spreadsheet);
 $writer->save('php://output');
 exit;
-?>

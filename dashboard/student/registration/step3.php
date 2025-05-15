@@ -21,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_step3'])) {
     $parent_name = $_POST['parent_name'];
     $parent_address = $_POST['parent_address'];
     $parent_occupation = $_POST['parent_occupation'];
-    $comment_on_child = $_POST['comment_on_child'];
+    $child_comment = $_POST['child_comment']; // <-- corrected name
     $religion = $_POST['religion'];
 
     // Handle file uploads
@@ -44,7 +44,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_step3'])) {
 
     // Update students table with parent and document info
     $update = $conn->prepare("UPDATE students SET parent_name=?, parent_address=?, parent_occupation=?, child_comment=?, religion=?, birth_certificate=?, testimonial=? WHERE unique_id=?");
-    $update->bind_param("ssssssss", $parent_name, $parent_address, $parent_occupation, $comment_on_child, $religion, $birth_certificate_path, $testimonial_path, $unique_id);
+    $update->bind_param("ssssssss", $parent_name, $parent_address, $parent_occupation, $child_comment, $religion, $birth_certificate_path, $testimonial_path, $unique_id);
     $update->execute();
     $update->close();
 
@@ -88,8 +88,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_step3'])) {
                     <input type="text" name="parent_occupation" class="form-control" value="<?= htmlspecialchars($student_data['parent_occupation'] ?? '') ?>" required>
                 </div>
                 <div class="mb-3">
-                    <label for="comment_on_child">Comment on the Child</label>
-                    <textarea name="comment_on_child" class="form-control" rows="4" required><?= htmlspecialchars($student_data['child_comment'] ?? '') ?></textarea>
+                    <label for="child_comment">Comment on the Child</label>
+                    <textarea name="child_comment" class="form-control" rows="4" required><?= htmlspecialchars($student_data['child_comment'] ?? '') ?></textarea>
                 </div>
                 <div class="mb-3">
                     <label for="religion">Religion</label>

@@ -1,6 +1,6 @@
 <?php
+// filepath: c:\xampp\htdocs\PHP-Projects-Here\school-app\dashboard\student\registration\full_registration.php
 session_start();
-// include "../../config.php";
 include "../../../config.php";
 
 $unique_id = $_SESSION['student_id'] ?? null;
@@ -25,7 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $step == 1) {
     $_SESSION['reg_address'] = $_POST['address'];
     $_SESSION['reg_age'] = $_POST['age'];
     $_SESSION['reg_state_of_origin'] = $_POST['state_of_origin'];
-    $_SESSION['reg_lga_of_origin'] = $_POST['lga_of_origin'];
+    $_SESSION['reg_lga_origin'] = $_POST['lga_origin'];
     $_SESSION['reg_state_of_residence'] = $_POST['state_of_residence'];
     $_SESSION['reg_lga_of_residence'] = $_POST['lga_of_residence'];
     $step = 2;
@@ -71,14 +71,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $step == 3) {
     $password_hash = !empty($password) ? password_hash($password, PASSWORD_DEFAULT) : ($student_data['password'] ?? '');
 
     // Update only the students table
-    $update = $conn->prepare("UPDATE students SET address=?, age=?, state_of_origin=?, lga_of_origin=?, state_of_residence=?, lga_of_residence=?, parent_name=?, parent_address=?, parent_occupation=?, religion=?, child_comment=?, birth_certificate=?, testimonial=?, passport_photo=?, password=? WHERE unique_id=?");
+    $update = $conn->prepare("UPDATE students SET address=?, age=?, state_of_origin=?, lga_origin=?, state_of_residence=?, lga_of_residence=?, parent_name=?, parent_address=?, parent_occupation=?, religion=?, child_comment=?, birth_certificate=?, testimonial=?, passport_photo=?, password=? WHERE unique_id=?");
 
     $update->bind_param(
-        "sissssssssssssss", // 16 types: s for string, i for integer (age)
+        "sissssssssssssss", // s=string, i=integer (age)
         $_SESSION['reg_address'],
         $_SESSION['reg_age'],
         $_SESSION['reg_state_of_origin'],
-        $_SESSION['reg_lga_of_origin'],
+        $_SESSION['reg_lga_origin'],
         $_SESSION['reg_state_of_residence'],
         $_SESSION['reg_lga_of_residence'],
         $_SESSION['reg_parent_name'],
@@ -98,7 +98,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $step == 3) {
     // Clear session vars for registration
     unset(
         $_SESSION['reg_address'], $_SESSION['reg_age'], $_SESSION['reg_state_of_origin'],
-        $_SESSION['reg_lga_of_origin'], $_SESSION['reg_state_of_residence'], $_SESSION['reg_lga_of_residence'],
+        $_SESSION['reg_lga_origin'], $_SESSION['reg_state_of_residence'], $_SESSION['reg_lga_of_residence'],
         $_SESSION['reg_parent_name'], $_SESSION['reg_parent_address'], $_SESSION['reg_parent_occupation'],
         $_SESSION['reg_religion'], $_SESSION['reg_child_comment']
     );
@@ -136,7 +136,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $step == 3) {
                     </div>
                     <div class="mb-3 col-md-6">
                         <label>LGA of Origin</label>
-                        <input type="text" name="lga_of_origin" class="form-control" value="<?= htmlspecialchars($student_data['lga_of_origin'] ?? '') ?>" required>
+                        <input type="text" name="lga_origin" class="form-control" value="<?= htmlspecialchars($student_data['lga_origin'] ?? '') ?>" required>
                     </div>
                     <div class="mb-3 col-md-6">
                         <label>State of Residence</label>

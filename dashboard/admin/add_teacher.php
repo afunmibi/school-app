@@ -92,14 +92,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .container {
             margin-top: 50px;
-            max-width: 900px;
+            max-width: 1100px;
+        }
+        .form-col {
+            max-width: 370px;
+            margin-left: auto;
+            margin-right: auto;
         }
         .alert {
             margin-bottom: 20px;
         }
         h2 {
-            text-align: center;
+            text-align: left;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2563eb;
+            letter-spacing: 1px;
+        }
+        .table-heading {
+            font-size: 1.4rem;
+            font-weight: 600;
             margin-bottom: 20px;
+            color: #1e293b;
         }
         .form-control {
             margin-bottom: 10px;
@@ -129,91 +144,97 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Add Teacher</h2>
-        <?php if (!empty($message)) echo $message; ?>
-        <form method="POST" action="" enctype="multipart/form-data">
-            <div class="mb-3">
-                <label class="form-label">Full Name</label>
-                <input type="text" name="name" required class="form-control" placeholder="Enter full name">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Form Column -->
+            <div class="col-lg-4 form-col mb-4">
+                <h2>Add Teacher</h2>
+                <?php if (!empty($message)) echo $message; ?>
+                <form method="POST" action="" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="name" required class="form-control" placeholder="Enter full name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" required class="form-control" placeholder="Enter email address">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" required class="form-control" placeholder="Choose a username">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" required class="form-control" placeholder="Create a password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Qualification</label>
+                        <input type="text" name="qualification" required class="form-control" placeholder="e.g. B.Ed, M.Sc">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" name="phone_number" required class="form-control" placeholder="Enter phone number">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Passport Photo</label>
+                        <input type="file" name="passport_photo" accept="image/*" required class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assign Class</label>
+                        <select name="class_assigned" required class="form-select">
+                            <option value="">-- Select Class --</option>
+                            <option value="Basic 1">Basic 1</option>
+                            <option value="Basic 2">Basic 2</option>
+                            <option value="Basic 3">Basic 3</option>
+                            <option value="Basic 4">Basic 4</option>
+                            <option value="Basic 5">Basic 5</option>
+                            <option value="Basic 6">Basic 6</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assign Subject</label>
+                        <input type="text" name="assigned_subject" required class="form-control" placeholder="e.g. Mathematics">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Add Teacher</button>
+                </form>
             </div>
-            <div class="mb-3">
-                <label class="form-label">Email Address</label>
-                <input type="email" name="email" required class="form-control" placeholder="Enter email address">
+            <!-- Table Column -->
+            <div class="col-lg-8">
+                <div class="table-heading">All Teachers</div>
+                <table class="table table-bordered table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Username</th>
+                            <th>Class Assigned</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $sn = 1;
+                        $teachers = $conn->query("SELECT * FROM users WHERE role='teacher' ORDER BY id DESC");
+                        while ($row = $teachers->fetch_assoc()):
+                        ?>
+                        <tr>
+                            <td><?= $sn++ ?></td>
+                            <td><?= htmlspecialchars($row['full_name']) ?></td>
+                            <td><?= htmlspecialchars($row['email']) ?></td>
+                            <td><?= htmlspecialchars($row['username']) ?></td>
+                            <td><?= htmlspecialchars($row['class_assigned']) ?></td>
+                            <td>
+                                <a href="edit_teacher.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-sm">Update</a>
+                                <a href="delete_teacher.php?id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
+                                
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
             </div>
-            <div class="mb-3">
-                <label class="form-label">Username</label>
-                <input type="text" name="username" required class="form-control" placeholder="Choose a username">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" name="password" required class="form-control" placeholder="Create a password">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Qualification</label>
-                <input type="text" name="qualification" required class="form-control" placeholder="e.g. B.Ed, M.Sc">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Phone Number</label>
-                <input type="text" name="phone_number" required class="form-control" placeholder="Enter phone number">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Passport Photo</label>
-                <input type="file" name="passport_photo" accept="image/*" required class="form-control">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Assign Class</label>
-                <select name="class_assigned" required class="form-select">
-                    <option value="">-- Select Class --</option>
-                    <option value="Basic 1">Basic 1</option>
-                    <option value="Basic 2">Basic 2</option>
-                    <option value="Basic 3">Basic 3</option>
-                    <option value="Basic 4">Basic 4</option>
-                    <option value="Basic 5">Basic 5</option>
-                    <option value="Basic 6">Basic 6</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Assign Subject</label>
-                <input type="text" name="assigned_subject" required class="form-control" placeholder="e.g. Mathematics">
-            </div>
-            <button type="submit" class="btn btn-primary w-100">Add Teacher</button>
-        </form>
-
-        <hr>
-        <h3 class="mt-5 mb-3">All Teachers</h3>
-        <table class="table table-bordered table-striped">
-            <thead class="table-light">
-                <tr>
-                    <th>#</th>
-                    <th>Full Name</th>
-                    <th>Email</th>
-                    <th>Username</th>
-                    <th>Class Assigned</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                $sn = 1;
-                $teachers = $conn->query("SELECT * FROM users WHERE role='teacher' ORDER BY id DESC");
-                while ($row = $teachers->fetch_assoc()):
-                ?>
-                <tr>
-                    <td><?= $sn++ ?></td>
-                    <td><?= htmlspecialchars($row['full_name']) ?></td>
-                    <td><?= htmlspecialchars($row['email']) ?></td>
-                    <td><?= htmlspecialchars($row['username']) ?></td>
-                    <td><?= htmlspecialchars($row['class_assigned']) ?></td>
-                    <td>
-                        <a href="edit_teacher.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-sm">Edit</a>
-                        <a href="delete_teacher.php?id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
-                        <a href="update_teacher.php?id=<?= $row['id'] ?>" class="btn btn-info btn-sm">Update</a>
-                    </td>
-                </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
+        </div>
     </div>
 </body>
 </html>

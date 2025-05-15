@@ -13,7 +13,7 @@ $id = intval($_GET['id']);
 $stmt = $conn->prepare("DELETE FROM students WHERE id = ? ");
 $stmt->bind_param("i", $id);
 if ($stmt->execute()) {
-    header("Location: dashboard.php?deleted=1");
+    header("Location: add_student.php?deleted=1");
     exit;
 } else {
     echo "Error deleting teacher.";

@@ -114,7 +114,7 @@ $classes = $conn->query("SELECT DISTINCT class_assigned FROM students WHERE clas
                     <option value="class_5">Class 5</option>
                     <option value="class_6">Class 6</option>
                     <?php while ($c = $classes->fetch_assoc()): ?>
-                        <option value="<?= htmlspecialchars($c['class']) ?>"><?= htmlspecialchars($c['class']) ?></option>
+                        <option value="<?= htmlspecialchars($c['class_assigned']) ?>"><?= htmlspecialchars($c['class_assigned']) ?></option>
                     <?php endwhile; ?>
                 </select>
             </div>

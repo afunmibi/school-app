@@ -122,7 +122,7 @@ $student_avatar = !empty($student['passport_photo'])
             <a href="submit_assignment.php" class="btn btn-primary">Submit Assignment</a>
         </div>
         <hr>
-        <a href="../../logout.php" class="btn btn-danger w-100">Logout</a>
+        <a href="student_login.php" class="btn btn-danger w-100">Logout</a>
     </div>
 </div>
 </body>

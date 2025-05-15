@@ -46,7 +46,7 @@ $pdf_path = '../pdfs/student_' . $student_data['unique_id'] . '.pdf';
             <?php else: ?>
                 <p class="text-center text-danger">PDF not generated yet. Please try again later.</p>
             <?php endif; ?>
-            <p class="text-center"><a href="../logout.php" class="btn btn-danger">Logout</a></p>
+            <p class="text-center"><a href="../../../logout.php" class="btn btn-danger">Logout</a></p>
         </div>
     </div>
 </body>
