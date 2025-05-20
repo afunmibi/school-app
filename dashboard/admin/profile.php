@@ -18,6 +18,7 @@ $stmt->bind_param("i", $admin_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $admin_data = $result->fetch_assoc();
+$stmt->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -69,7 +70,7 @@ $admin_data = $result->fetch_assoc();
                 $photo = !empty($admin_data['profile_photo']) ? $admin_data['profile_photo'] : 'default.png';
             ?>
             <img src="../uploads/<?= htmlspecialchars($photo) ?>"
-                 alt="Profile Photo"
+                 alt="Admin Profile Photo"
                  class="profile-avatar img-fluid rounded-circle">
         </div>
 
@@ -87,7 +88,7 @@ $admin_data = $result->fetch_assoc();
             </div>
             <div class="mb-3 text-start">
                 <label for="profile_photo" class="form-label">Profile Photo</label>
-                <input type="file" name="profile_photo" id="profile_photo" class="form-control">
+                <input type="file" name="profile_photo" id="profile_photo" class="form-control" accept="image/*">
             </div>
             <div class="text-center">
                 <button type="submit" class="btn btn-primary">Update Profile</button>

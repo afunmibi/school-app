@@ -10,22 +10,67 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
     exit;
 }
 
-// Get teacher's data
+// Get teacher's data from users table (for name and profile photo)
 $teacher_id = $_SESSION['user_id'];
-$stmt_teacher = $conn->prepare("SELECT * FROM users WHERE id = ?");
+$stmt_teacher = $conn->prepare("SELECT full_name, profile_photo FROM users WHERE id = ?");
 $stmt_teacher->bind_param("i", $teacher_id);
 $stmt_teacher->execute();
 $result_teacher = $stmt_teacher->get_result();
 $teacher_data = $result_teacher->fetch_assoc();
+$stmt_teacher->close();
 
-// Get class_assigned for this teacher
-$class_assigned = $teacher_data['class_assigned'] ?? '';
+// Get class_assigned for this teacher from the 'teachers' table
+$class_assigned = '';
+$stmt_teacher_class = $conn->prepare("SELECT class_assigned FROM teachers WHERE teacher_id = ?");
+if ($stmt_teacher_class) {
+    $stmt_teacher_class->bind_param("i", $teacher_id);
+    $stmt_teacher_class->execute();
+    $stmt_teacher_class->bind_result($class_assigned);
+    $stmt_teacher_class->fetch();
+    $stmt_teacher_class->close();
+}
+$class_assigned = trim($class_assigned ?? '');
 
 // Teacher photo logic
 $teacher_photo = !empty($teacher_data['profile_photo'])
     ? '../uploads/' . htmlspecialchars($teacher_data['profile_photo'])
     : 'https://ui-avatars.com/api/?name=' . urlencode($teacher_data['full_name'] ?? $teacher_data['name'] ?? 'Teacher') . '&background=2563eb&color=fff';
 
+// Fetch students in the teacher's assigned class
+$students_in_class = [];
+if (!empty($class_assigned)) {
+    $class_assigned_for_query = strtolower(trim($class_assigned));
+    $stmt_students_in_class = $conn->prepare(
+        "SELECT student_id, full_name FROM students WHERE LOWER(TRIM(class_assigned)) = ? ORDER BY full_name ASC"
+    );
+    if ($stmt_students_in_class) {
+        $stmt_students_in_class->bind_param("s", $class_assigned_for_query);
+        $stmt_students_in_class->execute();
+        $result_students_in_class = $stmt_students_in_class->get_result();
+        while ($student_row = $result_students_in_class->fetch_assoc()) {
+            $students_in_class[] = $student_row;
+        }
+        $stmt_students_in_class->close();
+    }
+}
+
+// Fetch assignments posted by this teacher for their class
+$assignments = [];
+if (!empty($class_assigned)) {
+    $stmt = $conn->prepare("
+        SELECT id, title, subject, due_date, date_posted
+        FROM assignments
+        WHERE teacher_id = ? AND class = ?
+        ORDER BY date_posted DESC
+    ");
+    $stmt->bind_param("is", $teacher_id, $class_assigned);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $assignments[] = $row;
+    }
+    $stmt->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -151,9 +196,6 @@ $teacher_photo = !empty($teacher_data['profile_photo'])
                     <a class="nav-link" href="assign_homework.php">Assign Homework</a>
                 </li>
                 <li class="nav-item mb-2">
-                    <a class="nav-link" href="post_assignment.php">Post Assignment</a>
-                </li>
-                <li class="nav-item mb-2">
                     <a class="nav-link" href="view_assignment.php">View Assignment</a>
                 </li>
                 <li class="nav-item mb-2">
@@ -188,73 +230,101 @@ $teacher_photo = !empty($teacher_data['profile_photo'])
                         </div>
                     </div>
                 </div>
-                
-<!-- display student assignment -->
-<div class="col-12 mt-4">
-    <h4 class="text-center">Student Assignments</h4>
-    <div class="alert alert-info" role="alert">
-        Here are the assignments you have posted for your students in <strong><?= htmlspecialchars($class_assigned ?: 'Not Assigned') ?></strong>.
-    </div>
-    <h5 class="mt-4">Submitted Assignments</h5>
-    <?php
-    // Fetch assignments/submissions for this teacher and class
-    $stmt = $conn->prepare("
-        SELECT a.*, s.full_name
-        FROM assignments a
-        LEFT JOIN students s ON a.student_id = s.id
-        WHERE a.teacher_id = ? AND a.class = ?
-        ORDER BY a.date_posted DESC
-    ");
-    $stmt->bind_param("is", $teacher_id, $class_assigned);
-    $stmt->execute();
-    $result = $stmt->get_result();
 
-    if ($result->num_rows > 0): ?>
-        <table class="table table-bordered table-striped">
-            <thead>
-                <tr>
-                    <th>Assignment Title</th>
-                    <th>Student Name</th>
-                    <th>Student ID</th>
-                    <th>Submission File</th>
-                    <th>Text Assignment</th>
-                    <th>Date Posted</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php while ($row = $result->fetch_assoc()): ?>
-                <tr>
-                    <td><?= htmlspecialchars($row['title']) ?></td>
-                    <td><?= htmlspecialchars($row['full_name'] ?? '-') ?></td>
-                    <td><?= htmlspecialchars($row['student_id'] ?? '-') ?></td>
-                    <td>
-                        <?php if (!empty($row['submission_file'])): ?>
-                            <a href="<?= htmlspecialchars($row['submission_file']) ?>" target="_blank">📄 View</a>
-                        <?php else: ?>
-                            <span class="text-danger">Not submitted</span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if (!empty($row['submission_text'])): ?>
-                            <?= nl2br(htmlspecialchars($row['submission_text'])) ?>
-                        <?php else: ?>
-                            <span class="text-secondary">No Text</span>
-                        <?php endif; ?>
-                    </td>
-                    <td><?= htmlspecialchars($row['date_posted']) ?></td>
-                </tr>
-            <?php endwhile; ?>
-            </tbody>
-        </table>
-    <?php else: ?>
-        <p>No submissions yet.</p>
-    <?php endif; ?>
-</div>
+                <!-- My Students List -->
+                <div class="col-12 mt-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Students in My Class: <?= htmlspecialchars($class_assigned ?: 'Not Assigned') ?></h5>
+                        </div>
+                        <div class="card-body">
+                            <?php if (!empty($class_assigned)): ?>
+                                <?php if (!empty($students_in_class)): ?>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-striped table-hover">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Student Name</th>
+                                                    <th>Student ID</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php $student_count = 1; ?>
+                                                <?php foreach ($students_in_class as $student): ?>
+                                                    <tr>
+                                                        <td><?= $student_count++ ?></td>
+                                                        <td><?= htmlspecialchars($student['full_name']) ?></td>
+                                                        <td><?= htmlspecialchars($student['student_id']) ?></td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="alert alert-info mb-0" role="alert">
+                                        No students found in your assigned class (<?= htmlspecialchars($class_assigned) ?>).
+                                    </div>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <div class="alert alert-warning mb-0" role="alert">
+                                    You are not currently assigned to a class. Please contact an administrator to get assigned.
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Posted Assignments -->
+                <div class="col-12 mt-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">My Posted Assignments</h5>
+                        </div>
+                        <div class="card-body">
+                            <?php if (!empty($assignments)): ?>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-striped table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Assignment Title</th>
+                                                <th>Subject</th>
+                                                <th>Due Date</th>
+                                                <th>Date Posted</th>
+                                                <th class="text-center">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php $assignment_count = 1; ?>
+                                            <?php foreach ($assignments as $row): ?>
+                                                <tr>
+                                                    <td><?= $assignment_count++ ?></td>
+                                                    <td><?= htmlspecialchars($row['title']) ?></td>
+                                                    <td><?= htmlspecialchars($row['subject']) ?></td>
+                                                    <td><?= htmlspecialchars($row['due_date']) ?></td>
+                                                    <td><?= htmlspecialchars($row['date_posted']) ?></td>
+                                                    <td class="text-center">
+                                                        <a href="view_submissions.php?assignment_id=<?= $row['id'] ?>" class="btn btn-sm btn-primary">View Submissions</a>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php else: ?>
+                                <div class="alert alert-info mb-0" role="alert">
+                                    No assignments posted yet for your class.
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 </div>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     // Sidebar toggle for mobile
     const sidebar = document.getElementById('sidebarNav');

@@ -1,9 +1,6 @@
 <?php
-
 session_start();
 include "../../config.php";
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
 
 // ✅ Check if logged in as student
 if (!isset($_SESSION['student_id'])) {
@@ -11,17 +8,17 @@ if (!isset($_SESSION['student_id'])) {
     exit;
 }
 
-$student_id = $_SESSION['student_id'];
+$student_unique_id = $_SESSION['student_id'];
 
-// Fetch student's class
-$class_stmt = $conn->prepare("SELECT class_assigned FROM students WHERE student_id = ?");
-$class_stmt->bind_param("s", $student_id);
+// Fetch student's class and internal ID
+$class_stmt = $conn->prepare("SELECT class_assigned, id FROM students WHERE student_id = ? OR unique_id = ?");
+$class_stmt->bind_param("ss", $student_unique_id, $student_unique_id);
 $class_stmt->execute();
-$class_stmt->bind_result($student_class);
+$class_stmt->bind_result($student_class, $student_internal_id);
 $class_stmt->fetch();
 $class_stmt->close();
 
-// Fetch assignments for this student
+// Fetch assignments for this student's class
 $stmt = $conn->prepare("SELECT a.id, a.subject, a.title, a.description, a.due_date, t.full_name AS teacher_name 
                         FROM assignments a 
                         JOIN teachers t ON a.teacher_id = t.id 
@@ -31,7 +28,6 @@ $stmt->bind_param("s", $student_class);
 $stmt->execute();
 $result = $stmt->get_result();
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -56,30 +52,33 @@ $result = $stmt->get_result();
             </thead>
             <tbody>
                 <?php while ($row = $result->fetch_assoc()):
-                    // Check if this assignment has been submitted
-                    $sub_stmt = $conn->prepare("SELECT submission_file FROM assignments WHERE id = ? AND student_id = ?");
-                    $sub_stmt->bind_param("ii", $row['id'], $student_id);
+                    // Corrected table name to assignments_submissions
+                    $sub_stmt = $conn->prepare("SELECT submission_file FROM assignments_submissions WHERE assignment_id = ? AND student_id = ?");
+                    $sub_stmt->bind_param("ii", $row['id'], $student_internal_id);
                     $sub_stmt->execute();
                     $sub_stmt->bind_result($submission_file);
                     $sub_stmt->fetch();
+                    $done = !empty($submission_file);
                     $sub_stmt->close();
                 ?>
                     <tr>
                         <td><?= htmlspecialchars($row['subject']) ?></td>
-                        <td><?= htmlspecialchars($row['title']) ?></td>
+                        <td>
+                            <?= htmlspecialchars($row['title']) ?>
+                            <?php if ($done): ?>
+                                <span class="badge bg-success ms-2">Done</span>
+                            <?php endif; ?>
+                        </td>
                         <td><?= nl2br(htmlspecialchars($row['description'])) ?></td>
                         <td><?= date("F j, Y", strtotime($row['due_date'])) ?></td>
                         <td><?= htmlspecialchars($row['teacher_name']) ?></td>
                         <td>
-                            <?php if (!empty($submission_file)): ?>
+                            <?php if ($done): ?>
                                 <span class="badge bg-success mb-1">Submitted</span>
-                                <a href="<?= htmlspecialchars($submission_file) ?>" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+                                <a href="../../<?= htmlspecialchars($submission_file) ?>" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+                                <a href="submit_assignment.php?assignment_id=<?= $row['id'] ?>" class="btn btn-sm btn-warning mt-1">Replace</a>
                             <?php else: ?>
-                                <form action="submit_assignment.php" method="POST" enctype="multipart/form-data">
-                                    <input type="hidden" name="assignment_id" value="<?= $row['id'] ?>">
-                                    <input type="file" name="submission_file" required>
-                                    <button type="submit" class="btn btn-sm btn-success mt-1">Submit</button>
-                                </form>
+                                <a href="submit_assignment.php?assignment_id=<?= $row['id'] ?>" class="btn btn-sm btn-success">Submit</a>
                             <?php endif; ?>
                         </td>
                     </tr>

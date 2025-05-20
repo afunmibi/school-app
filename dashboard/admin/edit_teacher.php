@@ -38,6 +38,8 @@ $qualification = $profile['qualification'] ?? '';
 $phone_number = $profile['phone_number'] ?? '';
 $passport_photo = $profile['passport_photo'] ?? '';
 
+$message = "";
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = trim($_POST['full_name']);
     $email = trim($_POST['email']);
@@ -49,63 +51,74 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Handle passport photo upload if provided
     if (isset($_FILES['passport_photo']) && $_FILES['passport_photo']['error'] === UPLOAD_ERR_OK) {
-        $upload_dir = "../../uploads/teachers/";
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+        $file_type = mime_content_type($_FILES['passport_photo']['tmp_name']);
+        $file_size = $_FILES['passport_photo']['size'];
+        if (!in_array($file_type, $allowed_types)) {
+            $message = "<div class='alert alert-danger'>Invalid file type. Only JPG, PNG, and GIF allowed.</div>";
+        } elseif ($file_size > 2 * 1024 * 1024) {
+            $message = "<div class='alert alert-danger'>File too large. Max 2MB allowed.</div>";
+        } else {
+            $upload_dir = "../../uploads/teachers/";
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            $ext = pathinfo($_FILES['passport_photo']['name'], PATHINFO_EXTENSION);
+            $passport_photo = uniqid('teacher_', true) . '.' . $ext;
+            move_uploaded_file($_FILES['passport_photo']['tmp_name'], $upload_dir . $passport_photo);
         }
-        $ext = pathinfo($_FILES['passport_photo']['name'], PATHINFO_EXTENSION);
-        $passport_photo = uniqid('teacher_', true) . '.' . $ext;
-        move_uploaded_file($_FILES['passport_photo']['tmp_name'], $upload_dir . $passport_photo);
     }
 
-    // Update users table (also update class_assigned and password if provided)
-    if (!empty($new_password)) {
-        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-        $stmt_user = $conn->prepare("UPDATE users SET full_name = ?, email = ?, username = ?, class_assigned = ?, password = ? WHERE id = ?");
-        $stmt_user->bind_param("sssssi", $name, $email, $username, $new_class, $hashed_password, $id);
-    } else {
-        $stmt_user = $conn->prepare("UPDATE users SET full_name = ?, email = ?, username = ?, class_assigned = ? WHERE id = ?");
-        $stmt_user->bind_param("ssssi", $name, $email, $username, $new_class, $id);
+    if (empty($message)) {
+        // Update users table (also update class_assigned and password if provided)
+        if (!empty($new_password)) {
+            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+            $stmt_user = $conn->prepare("UPDATE users SET full_name = ?, email = ?, username = ?, class_assigned = ?, password = ? WHERE id = ?");
+            $stmt_user->bind_param("sssssi", $name, $email, $username, $new_class, $hashed_password, $id);
+        } else {
+            $stmt_user = $conn->prepare("UPDATE users SET full_name = ?, email = ?, username = ?, class_assigned = ? WHERE id = ?");
+            $stmt_user->bind_param("ssssi", $name, $email, $username, $new_class, $id);
+        }
+        $stmt_user->execute();
+
+        // Update teachers table (also update class_assigned)
+        $stmt_teacher = $conn->prepare("UPDATE teachers SET full_name = ?, email = ?, class_assigned = ? WHERE teacher_id = ?");
+        $stmt_teacher->bind_param("sssi", $name, $email, $new_class, $id);
+        $stmt_teacher->execute();
+
+        // Update or insert assigned class in teacher_classes
+        $check_stmt = $conn->prepare("SELECT id FROM teacher_classes WHERE teacher_id = ?");
+        $check_stmt->bind_param("i", $id);
+        $check_stmt->execute();
+        $check_result = $check_stmt->get_result();
+        if ($check_result->num_rows > 0) {
+            $update_class = $conn->prepare("UPDATE teacher_classes SET class_assigned = ? WHERE teacher_id = ?");
+            $update_class->bind_param("si", $new_class, $id);
+            $update_class->execute();
+        } else {
+            $insert_class = $conn->prepare("INSERT INTO teacher_classes (teacher_id, class_assigned) VALUES (?, ?)");
+            $insert_class->bind_param("is", $id, $new_class);
+            $insert_class->execute();
+        }
+
+        // Update or insert teacher_profile (with class_assigned)
+        $check_profile = $conn->prepare("SELECT id FROM teacher_profile WHERE teacher_id = ?");
+        $check_profile->bind_param("i", $id);
+        $check_profile->execute();
+        $profile_result = $check_profile->get_result();
+        if ($profile_result->num_rows > 0) {
+            $update_profile = $conn->prepare("UPDATE teacher_profile SET qualification = ?, phone_number = ?, passport_photo = ?, class_assigned = ? WHERE teacher_id = ?");
+            $update_profile->bind_param("ssssi", $qualification, $phone_number, $passport_photo, $new_class, $id);
+            $update_profile->execute();
+        } else {
+            $insert_profile = $conn->prepare("INSERT INTO teacher_profile (teacher_id, qualification, phone_number, passport_photo, class_assigned) VALUES (?, ?, ?, ?, ?)");
+            $insert_profile->bind_param("issss", $id, $qualification, $phone_number, $passport_photo, $new_class);
+            $insert_profile->execute();
+        }
+
+        header("Location: dashboard.php?updated=1");
+        exit;
     }
-    $stmt_user->execute();
-
-    // Update teachers table (also update class_assigned)
-    $stmt_teacher = $conn->prepare("UPDATE teachers SET full_name = ?, email = ?, class_assigned = ? WHERE teacher_id = ?");
-    $stmt_teacher->bind_param("sssi", $name, $email, $new_class, $id);
-    $stmt_teacher->execute();
-
-    // Update or insert assigned class in teacher_classes
-    $check_stmt = $conn->prepare("SELECT id FROM teacher_classes WHERE teacher_id = ?");
-    $check_stmt->bind_param("i", $id);
-    $check_stmt->execute();
-    $check_result = $check_stmt->get_result();
-    if ($check_result->num_rows > 0) {
-        $update_class = $conn->prepare("UPDATE teacher_classes SET class_assigned = ? WHERE teacher_id = ?");
-        $update_class->bind_param("si", $new_class, $id);
-        $update_class->execute();
-    } else {
-        $insert_class = $conn->prepare("INSERT INTO teacher_classes (teacher_id, class_assigned) VALUES (?, ?)");
-        $insert_class->bind_param("is", $id, $new_class);
-        $insert_class->execute();
-    }
-
-    // Update or insert teacher_profile (with class_assigned)
-    $check_profile = $conn->prepare("SELECT id FROM teacher_profile WHERE teacher_id = ?");
-    $check_profile->bind_param("i", $id);
-    $check_profile->execute();
-    $profile_result = $check_profile->get_result();
-    if ($profile_result->num_rows > 0) {
-        $update_profile = $conn->prepare("UPDATE teacher_profile SET qualification = ?, phone_number = ?, passport_photo = ?, class_assigned = ? WHERE teacher_id = ?");
-        $update_profile->bind_param("ssssi", $qualification, $phone_number, $passport_photo, $new_class, $id);
-        $update_profile->execute();
-    } else {
-        $insert_profile = $conn->prepare("INSERT INTO teacher_profile (teacher_id, qualification, phone_number, passport_photo, class_assigned) VALUES (?, ?, ?, ?, ?)");
-        $insert_profile->bind_param("issss", $id, $qualification, $phone_number, $passport_photo, $new_class);
-        $insert_profile->execute();
-    }
-
-    header("Location: dashboard.php?updated=1");
-    exit;
 }
 ?>
 
@@ -119,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <div class="container mt-5">
     <div class="col-md-6 offset-md-3 bg-white p-4 shadow rounded">
         <h4 class="mb-3 text-primary">Edit Teacher</h4>
+        <?php if (!empty($message)) echo $message; ?>
         <form method="POST" enctype="multipart/form-data">
             <div class="mb-3">
                 <label>Name</label>

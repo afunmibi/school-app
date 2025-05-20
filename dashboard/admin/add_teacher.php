@@ -1,5 +1,4 @@
 <?php
-// filepath: c:\xampp\htdocs\PHP-Projects-Here\school-app\dashboard\admin\add_teacher.php
 session_start();
 include "../../config.php";
 
@@ -24,57 +23,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phone_number = trim($_POST['phone_number'] ?? '');
     $passport_photo = '';
 
-    // Handle passport photo upload
+    // Handle passport photo upload securely
     if (isset($_FILES['passport_photo']) && $_FILES['passport_photo']['error'] === UPLOAD_ERR_OK) {
-        $upload_dir = "../../uploads/teachers/";
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-        $ext = pathinfo($_FILES['passport_photo']['name'], PATHINFO_EXTENSION);
-        $passport_photo = uniqid('teacher_', true) . '.' . $ext;
-        move_uploaded_file($_FILES['passport_photo']['tmp_name'], $upload_dir . $passport_photo);
-    }
-
-    // Check if username or email already exists
-    $stmt_check = $conn->prepare("SELECT id FROM users WHERE email = ? OR username = ?");
-    $stmt_check->bind_param("ss", $email, $username);
-    $stmt_check->execute();
-    $result = $stmt_check->get_result();
-
-    if ($result->num_rows > 0) {
-        $message = "<div class='alert alert-danger'>Email or Username already exists. <a href='admin_dashboard.php' class='alert-link'>Go back</a></div>";
-    } else {
-        // Insert into users table
-        $stmt = $conn->prepare("INSERT INTO users (full_name, email, username, password, role, class_assigned) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssss", $name, $email, $username, $password, $role, $class_assigned);
-        if ($stmt->execute()) {
-            $teacher_id = $stmt->insert_id;
-
-            // Insert into teachers table
-            $stmt_teacher = $conn->prepare("INSERT INTO teachers (teacher_id, full_name, email, password, class_assigned) VALUES (?, ?, ?, ?, ?)");
-            $stmt_teacher->bind_param("issss", $teacher_id, $name, $email, $password, $class_assigned);
-            $stmt_teacher->execute();
-            $stmt_teacher->close();
-
-            // Insert into teacher_classes table
-            $stmt2 = $conn->prepare("INSERT INTO teacher_classes (teacher_id, full_name, class_assigned) VALUES (?, ?, ?)");
-            $stmt2->bind_param("iss", $teacher_id, $name, $class_assigned);
-            $stmt2->execute();
-            $stmt2->close();
-
-            // Insert into teacher_profile table
-            $stmt_profile = $conn->prepare("INSERT INTO teacher_profile (teacher_id, qualification, phone_number, passport_photo, class_assigned) VALUES (?, ?, ?, ?, ?)");
-            $stmt_profile->bind_param("issss", $teacher_id, $qualification, $phone_number, $passport_photo, $class_assigned);
-            $stmt_profile->execute();
-            $stmt_profile->close();
-
-            $message = "<div class='alert alert-success'>Teacher added successfully. <a href='admin_dashboard.php' class='alert-link'>Go back</a></div>";
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+        $file_type = mime_content_type($_FILES['passport_photo']['tmp_name']);
+        $file_size = $_FILES['passport_photo']['size'];
+        if (!in_array($file_type, $allowed_types)) {
+            $message = "<div class='alert alert-danger'>Invalid file type. Only JPG, PNG, and GIF allowed.</div>";
+        } elseif ($file_size > 2 * 1024 * 1024) {
+            $message = "<div class='alert alert-danger'>File too large. Max 2MB allowed.</div>";
         } else {
-            $message = "<div class='alert alert-danger'>Error adding teacher.</div>";
+            $upload_dir = "../../uploads/teachers/";
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            $ext = pathinfo($_FILES['passport_photo']['name'], PATHINFO_EXTENSION);
+            $passport_photo = uniqid('teacher_', true) . '.' . $ext;
+            move_uploaded_file($_FILES['passport_photo']['tmp_name'], $upload_dir . $passport_photo);
         }
-        $stmt->close();
     }
-    $stmt_check->close();
+
+    // Only proceed if no upload error
+    if (empty($message)) {
+        // Check if username or email already exists
+        $stmt_check = $conn->prepare("SELECT id FROM users WHERE email = ? OR username = ?");
+        $stmt_check->bind_param("ss", $email, $username);
+        $stmt_check->execute();
+        $result = $stmt_check->get_result();
+
+        if ($result->num_rows > 0) {
+            $message = "<div class='alert alert-danger'>Email or Username already exists. <a href='admin_dashboard.php' class='alert-link'>Go back</a></div>";
+        } else {
+            // Insert into users table
+            $stmt = $conn->prepare("INSERT INTO users (full_name, email, username, password, role, class_assigned, profile_photo) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("sssssss", $name, $email, $username, $password, $role, $class_assigned, $passport_photo);
+            if ($stmt->execute()) {
+                $teacher_id = $stmt->insert_id;
+
+                // Insert into teachers table
+                $stmt_teacher = $conn->prepare("INSERT INTO teachers (teacher_id, full_name, email, password, class_assigned) VALUES (?, ?, ?, ?, ?)");
+                $stmt_teacher->bind_param("issss", $teacher_id, $name, $email, $password, $class_assigned);
+                $stmt_teacher->execute();
+                $stmt_teacher->close();
+
+                // Insert into teacher_classes table
+                $stmt2 = $conn->prepare("INSERT INTO teacher_classes (teacher_id, full_name, class_assigned) VALUES (?, ?, ?)");
+                $stmt2->bind_param("iss", $teacher_id, $name, $class_assigned);
+                $stmt2->execute();
+                $stmt2->close();
+
+                // Insert into teacher_profile table
+                $stmt_profile = $conn->prepare("INSERT INTO teacher_profile (teacher_id, qualification, phone_number, passport_photo, class_assigned) VALUES (?, ?, ?, ?, ?)");
+                $stmt_profile->bind_param("issss", $teacher_id, $qualification, $phone_number, $passport_photo, $class_assigned);
+                $stmt_profile->execute();
+                $stmt_profile->close();
+
+                $message = "<div class='alert alert-success'>Teacher added successfully. <a href='admin_dashboard.php' class='alert-link'>Go back</a></div>";
+            } else {
+                $message = "<div class='alert alert-danger'>Error adding teacher.</div>";
+            }
+            $stmt->close();
+        }
+        $stmt_check->close();
+    }
 }
 ?>
 
@@ -141,6 +152,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background-color: #93c5fd;
             border-color: #93c5fd;
         }
+        .teacher-photo {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
     </style>
 </head>
 <body>
@@ -205,6 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <thead class="table-light">
                         <tr>
                             <th>#</th>
+                            <th>Photo</th>
                             <th>Full Name</th>
                             <th>Email</th>
                             <th>Username</th>
@@ -220,6 +238,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ?>
                         <tr>
                             <td><?= $sn++ ?></td>
+                            <td>
+                                <?php if (!empty($row['profile_photo'])): ?>
+                                    <img src="../../uploads/teachers/<?= htmlspecialchars($row['profile_photo']) ?>" alt="Photo" class="teacher-photo">
+                                <?php else: ?>
+                                    <span class="text-muted">N/A</span>
+                                <?php endif; ?>
+                            </td>
                             <td><?= htmlspecialchars($row['full_name']) ?></td>
                             <td><?= htmlspecialchars($row['email']) ?></td>
                             <td><?= htmlspecialchars($row['username']) ?></td>
@@ -227,7 +252,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <td>
                                 <a href="edit_teacher.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-sm">Update</a>
                                 <a href="delete_teacher.php?id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
-                                
                             </td>
                         </tr>
                         <?php endwhile; ?>

@@ -4,6 +4,12 @@ include "../../config.php";
 
 $message = "";
 
+// Redirect if already logged in
+if (isset($_SESSION['student_id'])) {
+    header("Location: dashboard.php");
+    exit;
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $unique_id = trim($_POST['unique_id'] ?? '');
     $password = trim($_POST['password'] ?? '');
@@ -22,6 +28,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // Password verification (passwords should be hashed and verified)
             if (password_verify($password, $student['pass'])) {
+                session_regenerate_id(true);
                 $_SESSION['student_id'] = $student['unique_id'];
                 header("Location: dashboard.php");
                 exit;
@@ -51,28 +58,27 @@ $conn->close();
             <div class="col-md-6">
                 <form action="" method="POST" class="p-4 border shadow rounded bg-white">
                     <h4 class="text-center mb-4 text-primary">Student Login</h4>
-                    <?php if ($message) echo "<div class='alert alert-danger text-center'>$message</div>"; ?>
+                    <?php if ($message) echo "<div class='alert alert-danger text-center'>" . htmlspecialchars($message) . "</div>"; ?>
                     <div class="mb-3">
                         <label for="unique_id">Unique ID</label>
-                        <input type="text" name="unique_id" class="form-control" required>
+                        <input type="text" name="unique_id" id="unique_id" class="form-control" required autocomplete="username">
                     </div>
                     <div class="mb-3">
-                        <label>Password</label>
-                        <input type="password" name="password" class="form-control" required>
+                        <label for="password">Password</label>
+                        <input type="password" name="password" id="password" class="form-control" required autocomplete="current-password">
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Login</button>
                 </form>
             </div>
         </div>
-        <p>NIK4620</p>
+    </div>
+    <div class="text-center mt-3">
+        <p>Don't have an account? <a href="register.php">Register here</a></p>
+    <p>NIK4620</p>
     <p>Y5SqGvMh</p>
     <p>RUK1770</p>
     <p>srXhWUbT</p>
-    </div> 
-     
-</div>
-    <div> 
-      
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>

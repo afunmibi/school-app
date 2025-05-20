@@ -12,13 +12,18 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
 
 // Approve the pre-registration record when 'id' is passed via GET
 if (isset($_GET['id']) && filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
-    echo $id = (int)$_GET['id'];
-
-    $conn->query("UPDATE pre_registration1 SET status = 'approved' WHERE id = $id");
+    $id = (int)$_GET['id'];
+    $stmt = $conn->prepare("UPDATE pre_registration1 SET status = 'approved' WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    if (!$stmt->execute()) {
+        echo "<div class='alert alert-danger'>Approve Error: " . htmlspecialchars($stmt->error) . "</div>";
+    }
+    $stmt->close();
+    header("Location: approved_registration.php");
+    exit;
 }
 
 // Insert approved pre-registrations into students table if not already present
-
 $insert_sql = "
     INSERT INTO students (full_name, phone_no, email_address, unique_id, status)
     SELECT pr.full_name, pr.phone_no, pr.email_address, pr.unique_id, 'approved'
@@ -46,7 +51,7 @@ if (!$conn->query($update_sql)) {
 
 // Fetch all approved students from pre_registration1
 $query = "SELECT id, full_name, phone_no, email_address, unique_id, status, created_at 
-          FROM pre_registration1 WHERE status = 'approved'";
+          FROM pre_registration1 WHERE status = 'approved' ORDER BY created_at DESC";
 $result = $conn->query($query);
 if ($conn->error) {
     echo "<div class='alert alert-danger'>Select Error: " . htmlspecialchars($conn->error) . "</div>";
@@ -86,7 +91,9 @@ if ($conn->error) {
                                 <td><?= htmlspecialchars($row['phone_no']) ?></td>
                                 <td><?= htmlspecialchars($row['email_address']) ?></td>
                                 <td><?= htmlspecialchars($row['unique_id']) ?></td>
-                                <td><?= htmlspecialchars($row['status']) ?></td>
+                                <td>
+                                    <span class="badge bg-success"><?= htmlspecialchars($row['status']) ?></span>
+                                </td>
                                 <td><?= htmlspecialchars($row['created_at']) ?></td>
                             </tr>
                         <?php endwhile; else: ?>

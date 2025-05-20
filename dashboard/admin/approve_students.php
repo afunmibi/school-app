@@ -1,5 +1,17 @@
 <?php
+session_start();
 include "../config.php";
+
+// Only allow admin for approval actions
+if (
+    (isset($_GET['action']) && $_GET['action'] === 'approve') ||
+    (isset($_GET['action']) && $_GET['action'] === 'reject')
+) {
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+        header("Location: ../../index.php");
+        exit;
+    }
+}
 
 $message = "";
 $action = $_GET['action'] ?? '';
@@ -20,7 +32,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $message = "Invalid email format.";
         } else {
             // Check for duplicate email
-            $check = $conn->prepare("SELECT * FROM pre_registration1 WHERE email_address = ?");
+            $check = $conn->prepare("SELECT id FROM pre_registration1 WHERE email_address = ?");
             $check->bind_param("s", $email);
             $check->execute();
             $result = $check->get_result();
@@ -69,7 +81,7 @@ if ($action == 'approve' && $id) {
         $hashed_password = password_hash($student['raw_password'], PASSWORD_DEFAULT);
 
         // Update or Insert into student_login
-        $check_login = $conn->prepare("SELECT * FROM student_login WHERE pre_reg_id = ?");
+        $check_login = $conn->prepare("SELECT id FROM student_login WHERE pre_reg_id = ?");
         $check_login->bind_param("i", $id);
         $check_login->execute();
         $login_result = $check_login->get_result();
@@ -79,17 +91,36 @@ if ($action == 'approve' && $id) {
             $update_login = $conn->prepare("UPDATE student_login SET unique_id = ?, email = ?, password = ? WHERE pre_reg_id = ?");
             $update_login->bind_param("sssi", $student['unique_id'], $student['email_address'], $hashed_password, $id);
             $update_login->execute();
+            $update_login->close();
         } else {
             // Insert new login
             $insert_login = $conn->prepare("INSERT INTO student_login (pre_reg_id, unique_id, email, password) VALUES (?, ?, ?, ?)");
             $insert_login->bind_param("isss", $id, $student['unique_id'], $student['email_address'], $hashed_password);
             $insert_login->execute();
+            $insert_login->close();
         }
+        $check_login->close();
 
-        // Insert into students table
-        $stmt_students = $conn->prepare("INSERT INTO students (pre_reg_id, full_name, phone_no, email_address, unique_id, status) VALUES (?, ?, ?, ?, ?, 'approved')");
-        $stmt_students->bind_param("issss", $id, $student['full_name'], $student['phone_no'], $student['email_address'], $student['unique_id']);
-        $stmt_students->execute();
+        // Prevent duplicate in students table
+        $check_student = $conn->prepare("SELECT id FROM students WHERE pre_reg_id = ?");
+        $check_student->bind_param("i", $id);
+        $check_student->execute();
+        $student_result = $check_student->get_result();
+
+        if ($student_result->num_rows == 0) {
+            // Insert into students table
+            $stmt_students = $conn->prepare("INSERT INTO students (pre_reg_id, full_name, phone_no, email_address, unique_id, status) VALUES (?, ?, ?, ?, ?, 'approved')");
+            $stmt_students->bind_param("issss", $id, $student['full_name'], $student['phone_no'], $student['email_address'], $student['unique_id']);
+            $stmt_students->execute();
+            $stmt_students->close();
+        }
+        $check_student->close();
+
+        // Remove raw password for security
+        $stmt = $conn->prepare("UPDATE pre_registration1 SET raw_password = NULL WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $stmt->close();
     }
 
     header("Location: approve_students.php");

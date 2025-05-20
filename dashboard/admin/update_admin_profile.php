@@ -21,13 +21,24 @@ if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPL
     $fileName = basename($_FILES['profile_photo']['name']);
     $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
     $allowedExt = ['jpg', 'jpeg', 'png', 'gif'];
+    $allowedMime = ['image/jpeg', 'image/png', 'image/gif'];
+    $fileMime = mime_content_type($fileTmp);
+    $fileSize = $_FILES['profile_photo']['size'];
 
     $uploadDir = '../uploads/';
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
 
-    if (in_array($fileExt, $allowedExt)) {
+    if (!in_array($fileExt, $allowedExt) || !in_array($fileMime, $allowedMime)) {
+        $_SESSION['error'] = "Invalid image type. Only jpg, jpeg, png, gif allowed.";
+        header("Location: profile.php");
+        exit;
+    } elseif ($fileSize > 2 * 1024 * 1024) {
+        $_SESSION['error'] = "Image too large. Max 2MB allowed.";
+        header("Location: profile.php");
+        exit;
+    } else {
         $newFileName = 'admin_' . time() . '.' . $fileExt;
         $uploadPath = $uploadDir . $newFileName;
 
@@ -40,10 +51,6 @@ if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPL
             header("Location: profile.php");
             exit;
         }
-    } else {
-        $_SESSION['error'] = "Invalid image type. Only jpg, jpeg, png, gif allowed.";
-        header("Location: profile.php");
-        exit;
     }
 } else {
     // Update without photo

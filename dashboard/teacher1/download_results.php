@@ -21,12 +21,15 @@ $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
 $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 
 // Query to fetch students' data based on class and date filters
-$query = "SELECT students.full_name, students.class_assigned AS class, 
-                 assessments.assessment_score, 
-                 exam_results.exam_score, exam_results.result_date
+$query = "SELECT 
+            students.full_name, 
+            students.class_assigned AS class,
+            assessments.assessment_score,
+            exam_scores.score AS exam_score,
+            exam_scores.date_recorded AS result_date
           FROM students
           LEFT JOIN assessments ON students.id = assessments.student_id
-          LEFT JOIN exam_results ON students.id = exam_results.student_id";
+          LEFT JOIN exam_scores ON students.id = exam_scores.student_id";
 
 $conditions = [];
 $params = [];
@@ -39,7 +42,7 @@ if ($class_filter) {
     $types .= "s";
 }
 if ($start_date && $end_date) {
-    $conditions[] = "exam_results.result_date BETWEEN ? AND ?";
+    $conditions[] = "exam_scores.date_recorded BETWEEN ? AND ?";
     $params[] = $start_date;
     $params[] = $end_date;
     $types .= "ss";

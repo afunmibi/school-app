@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 include "../../config.php";
 
@@ -7,7 +8,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../../index.php");
     exit;
 }
-require '../vendor/autoload.php';  // If you're using Composer. Otherwise, include PhpSpreadsheet manually.
+require '../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -18,17 +19,16 @@ if (!isset($_SESSION['teacher_id']) && !isset($_SESSION['admin_id'])) {
     exit;
 }
 
-// Get the user type (admin or teacher)
-$user_type = isset($_SESSION['admin_id']) ? 'admin' : 'teacher';
-
-// Define the table to fetch from based on user type
-$table = $user_type == 'admin' ? 'exam_results' : 'assessments';
-
-// Fetch data from the database
-$query = "SELECT students.full_name, assessments.assessment_score, exam_results.exam_score
+// Fetch data: sum of assessments and exam scores per student
+$query = "SELECT 
+            students.full_name, 
+            COALESCE(SUM(assessments.assessment_score), 0) AS assessments, 
+            COALESCE(SUM(final_exam_results.exam_score), 0) AS exam_scores,
+            (COALESCE(SUM(assessments.assessment_score), 0) + COALESCE(SUM(final_exam_results.exam_score), 0)) AS final_exam_results
           FROM students
           LEFT JOIN assessments ON students.id = assessments.student_id
-          LEFT JOIN exam_results ON students.id = exam_results.student_id";
+          LEFT JOIN final_exam_results ON students.id = final_exam_results.student_id
+          GROUP BY students.id, students.full_name";
 
 $stmt = $conn->prepare($query);
 $stmt->execute();
@@ -38,15 +38,21 @@ $result = $stmt->get_result();
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 $sheet->setCellValue('A1', 'Full Name')
-      ->setCellValue('B1', 'Continuous Assessment Score')
-      ->setCellValue('C1', 'Examination Score');
+      ->setCellValue('B1', 'Assessments')
+      ->setCellValue('C1', 'Exam Scores')
+      ->setCellValue('D1', 'Final Exam Results');
 
 // Write data to the spreadsheet
 $row = 2;
 while ($data = $result->fetch_assoc()) {
+    $assessments = is_numeric($data['assessments']) ? $data['assessments'] : 0;
+    $exam_scores = is_numeric($data['exam_scores']) ? $data['exam_scores'] : 0;
+    $final_exam_results = is_numeric($data['final_exam_results']) ? $data['final_exam_results'] : 0;
+
     $sheet->setCellValue('A' . $row, $data['full_name'])
-          ->setCellValue('B' . $row, $data['assessment_score'] ?? 'N/A')
-          ->setCellValue('C' . $row, $data['exam_score'] ?? 'N/A');
+          ->setCellValue('B' . $row, $assessments)
+          ->setCellValue('C' . $row, $exam_scores)
+          ->setCellValue('D' . $row, $final_exam_results);
     $row++;
 }
 

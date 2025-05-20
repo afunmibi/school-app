@@ -1,4 +1,3 @@
-
 <?php
 session_start();
 include "../../config.php";
@@ -22,6 +21,57 @@ $admin_image = !empty($admin_data['profile_photo']) ? $admin_data['profile_photo
 // Fetch teachers and classes for assignment
 $teachers = $conn->query("SELECT id, full_name, class_assigned FROM users WHERE role='teacher'");
 $classes = $conn->query("SELECT DISTINCT class_assigned FROM students WHERE class_assigned IS NOT NULL AND class_assigned != ''");
+
+// Fetch all assignments for admin view
+$assignments = [];
+$stmt = $conn->prepare("
+    SELECT a.id, a.title, a.subject, a.details, a.due_date, a.date_posted, u.full_name AS teacher_name, a.class
+    FROM assignments a
+    LEFT JOIN users u ON a.teacher_id = u.id
+    ORDER BY a.date_posted DESC
+");
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $assignments[] = $row;
+}
+$stmt->close();
+
+// Fetch detailed teacher list for display on dashboard
+$detailed_teachers_query = "
+    SELECT
+        u.id AS user_table_id,
+        u.full_name AS user_table_full_name,
+        u.email AS user_table_email,
+        u.username AS user_table_username,
+        u.class_assigned AS user_table_class_assigned,
+        u.profile_photo AS user_table_profile_photo,
+        tp.qualification AS profile_qualification,
+        tp.phone_number AS profile_phone_number,
+        GROUP_CONCAT(DISTINCT tc.class_assigned ORDER BY tc.class_assigned SEPARATOR ', ') AS all_classes
+    FROM users u
+    LEFT JOIN teachers t ON u.id = t.teacher_id
+    LEFT JOIN teacher_classes tc ON u.id = tc.teacher_id
+    LEFT JOIN teacher_profile tp ON u.id = tp.teacher_id
+    WHERE u.role = 'teacher'
+    GROUP BY u.id
+    ORDER BY u.full_name ASC
+";
+$detailed_teachers_result = $conn->query($detailed_teachers_query);
+$detailed_teachers_list = [];
+if ($detailed_teachers_result) {
+    while ($teacher_row = $detailed_teachers_result->fetch_assoc()) {
+        $detailed_teachers_list[] = $teacher_row;
+    }
+}
+$detailed_teachers_result->close();
+$fetch_pre_register_students = $conn->query("SELECT * FROM pre_registration1 WHERE status = 'pending' ORDER BY full_name ASC");
+$fetch_pre_register_students_list = [];
+if ($fetch_pre_register_students) {
+    while ($student_row = $fetch_pre_register_students->fetch_assoc()) {
+        $fetch_pre_register_students_list[] = $student_row;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -76,9 +126,11 @@ $classes = $conn->query("SELECT DISTINCT class_assigned FROM students WHERE clas
         <li><a href="add_teacher.php"><i class="fas fa-chalkboard-teacher"></i> Manage Teachers</a></li>
         <li><a href="add_student.php"><i class="fas fa-user-graduate"></i> Manage Students</a></li>
         <li><a href="approve_results.php"><i class="fas fa-check"></i> Approve Results</a></li>
+        <li><a href="manage_results.php"><i class="fas fa-check"></i> Results Management</a></li>
         <li><a href="profile.php"><i class="fas fa-user"></i> View/Edit Profile</a></li>
         <li><a href="../../logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
     </ul>
+    manage_results.php
 </div>
 <div class="content">
     <div class="top-bar">
@@ -95,8 +147,7 @@ $classes = $conn->query("SELECT DISTINCT class_assigned FROM students WHERE clas
                 <label for="teacher_id" class="form-label">Select Teacher</label>
                 <select name="teacher_id" class="form-select" required>
                     <option value="">-- Select Teacher --</option>
-                    
-                    <?php while ($t = $teachers->fetch_assoc()): ?>
+                    <?php $teachers->data_seek(0); while ($t = $teachers->fetch_assoc()): ?>
                         <option value="<?= $t['id'] ?>">
                             <?= htmlspecialchars($t['full_name']) ?><?= $t['class_assigned'] ? " (Current: " . htmlspecialchars($t['class_assigned']) . ")" : "" ?>
                         </option>
@@ -104,16 +155,10 @@ $classes = $conn->query("SELECT DISTINCT class_assigned FROM students WHERE clas
                 </select>
             </div>
             <div class="col-md-5">
-                <label for="class" class="form-label">Assign Class</label>
+                <label for="class_assigned" class="form-label">Assign to Class</label>
                 <select name="class_assigned" class="form-select" required>
                     <option value="">-- Select Class --</option>
-                    <option value="class_1">Class 1</option>
-                    <option value="class_2">Class 2</option>
-                    <option value="class_3">Class 3</option>
-                    <option value="class_4">Class 4</option>
-                    <option value="class_5">Class 5</option>
-                    <option value="class_6">Class 6</option>
-                    <?php while ($c = $classes->fetch_assoc()): ?>
+                    <?php $classes->data_seek(0); while ($c = $classes->fetch_assoc()): ?>
                         <option value="<?= htmlspecialchars($c['class_assigned']) ?>"><?= htmlspecialchars($c['class_assigned']) ?></option>
                     <?php endwhile; ?>
                 </select>
@@ -122,6 +167,106 @@ $classes = $conn->query("SELECT DISTINCT class_assigned FROM students WHERE clas
                 <button type="submit" class="btn btn-success w-100">Assign</button>
             </div>
         </form>
+        <hr>
+        <h4 class="text-primary module-heading">Teacher Overview</h4>
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered table-striped table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Photo</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Username</th>
+                        <th>Class Assigned</th>
+                        <th>Qualification</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($detailed_teachers_list)): ?>
+                        <?php $teacher_count = 1; foreach ($detailed_teachers_list as $teacher): ?>
+                            <tr>
+                                <td><?= $teacher_count++ ?></td>
+                                <td>
+                                    <?php
+                                    $teacher_photo_path = "../uploads/" . (!empty($teacher['user_table_profile_photo']) ? htmlspecialchars($teacher['user_table_profile_photo']) : 'default.png');
+                                    if (empty($teacher['user_table_profile_photo']) || !file_exists(dirname(__DIR__) . '/uploads/' . $teacher['user_table_profile_photo'])) {
+                                        $teacher_photo_path = "https://ui-avatars.com/api/?name=" . urlencode($teacher['user_table_full_name']) . "&background=303f9f&color=fff&size=40";
+                                    }
+                                    ?>
+                                    <img src="<?= $teacher_photo_path ?>" alt="<?= htmlspecialchars($teacher['user_table_full_name']) ?>" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                </td>
+                                <td><?= htmlspecialchars($teacher['user_table_full_name']) ?></td>
+                                <td><?= htmlspecialchars($teacher['user_table_email']) ?></td>
+                                <td><?= htmlspecialchars($teacher['user_table_username']) ?></td>
+                                <td>
+                                    <?php
+                                    // Show all classes from teacher_classes if available, else show main class_assigned
+                                    if (!empty($teacher['all_classes'])) {
+                                        echo htmlspecialchars($teacher['all_classes']);
+                                    } elseif (!empty($teacher['user_table_class_assigned'])) {
+                                        echo htmlspecialchars($teacher['user_table_class_assigned']);
+                                    } else {
+                                        echo 'N/A';
+                                    }
+                                    ?>
+                                </td>
+                                <td><?= htmlspecialchars($teacher['profile_qualification'] ?: 'N/A') ?></td>
+                                <td><?= htmlspecialchars($teacher['profile_phone_number'] ?: 'N/A') ?></td>
+                                <td>
+                                    <a href="edit_teacher.php?id=<?= $teacher['user_table_id'] ?>" class="btn btn-warning btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
+                                    <a href="delete_teacher.php?id=<?= $teacher['user_table_id'] ?>" class="btn btn-danger btn-sm" title="Delete" onclick="return confirm('Are you sure you want to delete this teacher? This will remove their record from users, teachers, teacher_classes, and teacher_profile tables.');"><i class="fas fa-trash-alt"></i></a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="9" class="text-center">No teachers found.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <hr>
+        <h4 class="text-primary module-heading">All Posted Assignments</h4>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Title</th>
+                        <th>Subject</th>
+                        <th>Class</th>
+                        <th>Teacher</th>
+                        <th>Details</th>
+                        <th>Due Date</th>
+                        <th>Date Posted</th>
+                        <th>Submissions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($assignments)): ?>
+                        <?php $i = 1; foreach ($assignments as $row): ?>
+                            <tr>
+                                <td><?= $i++ ?></td>
+                                <td><?= htmlspecialchars($row['title']) ?></td>
+                                <td><?= htmlspecialchars($row['subject']) ?></td>
+                                <td><?= htmlspecialchars($row['class']) ?></td>
+                                <td><?= htmlspecialchars($row['teacher_name']) ?></td>
+                                <td><?= nl2br(htmlspecialchars($row['details'])) ?></td>
+                                <td><?= htmlspecialchars($row['due_date']) ?></td>
+                                <td><?= htmlspecialchars($row['date_posted']) ?></td>
+                                <td>
+                                    <a href="view_submissions.php?assignment_id=<?= $row['id'] ?>" class="btn btn-sm btn-primary">View Submissions</a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="9" class="text-center">No assignments posted yet.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
         <hr>
         <h4 class="text-primary module-heading">Quick Actions</h4>
         <div class="row g-3">
@@ -136,7 +281,43 @@ $classes = $conn->query("SELECT DISTINCT class_assigned FROM students WHERE clas
             </div>
         </div>
     </div>
-</div>
+    <hr>
+<h4 class="text-primary module-heading">Pending Pre-Registered Students</h4>
+<div class="table-responsive mb-4">
+    <table class="table table-bordered table-striped table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>#</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Class Requested</th>
+                <th>Date Registered</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (!empty($fetch_pre_register_students_list)): ?>
+                <?php $s = 1; foreach ($fetch_pre_register_students_list as $student): ?>
+                    <tr>
+                        <td><?= $s++ ?></td>
+                        <td><?= htmlspecialchars($student['full_name']) ?></td>
+                        <td><?= htmlspecialchars($student['email']) ?></td>
+                        <td><?= htmlspecialchars($student['phone']) ?></td>
+                        <td><?= htmlspecialchars($student['class_requested'] ?? 'N/A') ?></td>
+                        <td><?= htmlspecialchars($student['date_registered'] ?? '') ?></td>
+                        <td>
+                            <a href="approved_registration.php?id=<?= $student['id'] ?>" class="btn btn-success btn-sm" onclick="return confirm('Approve this student?');">Approve</a>
+                            <a href="rejected_registration.php?id=<?= $student['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Reject this student?');">Reject</a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <tr><td colspan="7" class="text-center">No pending pre-registrations.</td></tr>
+            <?php endif; ?>
+        </tbody>
+    </table>
+</div></div>
 <script>
     // Sidebar toggle for mobile
     const sidebar = document.getElementById('sidebarNav');

@@ -39,7 +39,6 @@ $message = "";
                 $result = $stmt->get_result();
 
                 if ($result && $result->num_rows > 0): ?>
-                    <h5>Pending Pre-Registrations</h5>
                     <table class="table table-bordered table-striped">
                         <thead class="table-dark">
                             <tr>
@@ -58,8 +57,8 @@ $message = "";
                                     <td><?= htmlspecialchars($row['email_address']) ?></td>
                                     <td><?= htmlspecialchars($row['phone_no']) ?></td>
                                     <td>
-                                        <a href="approved_registration.php?id=<?= urlencode($row['id']) ?>" class="btn btn-success btn-sm">Approve</a>
-                                        <a href="rejected_registration.php?id=<?= urlencode($row['id']) ?>" class="btn btn-danger btn-sm">Reject</a>
+                                        <a href="approved_registration.php?id=<?= urlencode($row['id']) ?>" class="btn btn-success btn-sm" onclick="return confirm('Approve this student?');" title="Approve">Approve</a>
+                                        <a href="rejected_registration.php?id=<?= urlencode($row['id']) ?>" class="btn btn-danger btn-sm" onclick="return confirm('Reject this student?');" title="Reject">Reject</a>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>

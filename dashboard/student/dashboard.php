@@ -1,10 +1,10 @@
 <?php
-// filepath: c:\xampp\htdocs\PHP-Projects-Here\school-app\dashboard\student\dashboard.php
 session_start();
 include "../../config.php";
+
 // Check if student is logged in
 if (!isset($_SESSION['student_id'])) {
-    header("Location: ../../../index.php");
+    header("Location: student_login.php");
     exit;
 }
 
@@ -39,8 +39,8 @@ $teacher_photo = !empty($teacher['profile_photo'])
 
 // Student photo logic
 $student_avatar = !empty($student['passport_photo'])
-    ? "../uploads/" . htmlspecialchars($student['passport_photo'])
-    : "https://ui-avatars.com/api/?name=" . urlencode($student['full_name']) . "&background=2563eb&color=fff";
+    ? "../../uploads/passports/" . htmlspecialchars($student['passport_photo'])
+    : "https://ui-avatars.com/api/?name=" . urlencode($student['full_name'] ?? 'Student') . "&background=2563eb&color=fff";
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -92,7 +92,7 @@ $student_avatar = !empty($student['passport_photo'])
 <body>
 <div class="container">
     <div class="student-card text-center">
-        <img src="<?= $student_avatar ?>" alt="Student" class="student-avatar">
+        <img src="<?= $student_avatar ?>" alt="Student Photo" class="student-avatar">
         <h4 class="text-primary mb-1">Welcome, <?= htmlspecialchars($student['full_name']) ?></h4>
         <p class="mb-2 text-muted"><?= htmlspecialchars($student['unique_id']) ?></p>
         <hr>
@@ -106,7 +106,7 @@ $student_avatar = !empty($student['passport_photo'])
         <div class="mb-3">
             <h5 class="mb-2">Class Teacher</h5>
             <?php if ($teacher): ?>
-                <img src="<?= $teacher_photo ?>" alt="Teacher" class="teacher-avatar">
+                <img src="<?= $teacher_photo ?>" alt="Class Teacher Photo" class="teacher-avatar">
                 <div><?= htmlspecialchars($teacher['full_name']) ?></div>
             <?php else: ?>
                 <div class="text-danger">No teacher assigned to your class yet.</div>
@@ -122,7 +122,7 @@ $student_avatar = !empty($student['passport_photo'])
             <a href="submit_assignment.php" class="btn btn-primary">Submit Assignment</a>
         </div>
         <hr>
-        <a href="student_login.php" class="btn btn-danger w-100">Logout</a>
+        <a href="../../logout.php" class="btn btn-danger w-100">Logout</a>
     </div>
 </div>
 </body>

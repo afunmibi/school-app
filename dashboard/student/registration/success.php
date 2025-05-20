@@ -18,6 +18,11 @@ $result = $stmt->get_result();
 $student_data = $result->fetch_assoc();
 $stmt->close();
 
+if (!$student_data) {
+    echo "<div class='alert alert-danger'>Student record not found.</div>";
+    exit;
+}
+
 // Check if PDF exists
 $pdf_path = '../pdfs/student_' . $student_data['unique_id'] . '.pdf';
 ?>
@@ -36,12 +41,12 @@ $pdf_path = '../pdfs/student_' . $student_data['unique_id'] . '.pdf';
             <h4 class="text-primary mb-4 text-center">Registration Completed Successfully</h4>
             <p class="text-center">
                 Congratulations, your registration is complete! Your unique ID is:
-                <strong><?= htmlspecialchars($student_data['unique_id'] ?? '') ?></strong>
+                <strong><?= htmlspecialchars($student_data['unique_id']) ?></strong>
             </p>
             <p class="text-center">Click the link below to download your registration PDF:</p>
-            <?php if (!empty($student_data['unique_id']) && file_exists($pdf_path)) : ?>
+            <?php if (file_exists($pdf_path)) : ?>
                 <p class="text-center">
-                    <a href="<?= htmlspecialchars($pdf_path) ?>" class="btn btn-success" download>Download PDF</a>
+                    <a href="<?= htmlspecialchars($pdf_path) ?>" class="btn btn-success" download title="Download your registration PDF">Download PDF</a>
                 </p>
             <?php else: ?>
                 <p class="text-center text-danger">PDF not generated yet. Please try again later.</p>

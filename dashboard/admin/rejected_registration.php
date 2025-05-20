@@ -10,24 +10,9 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
     exit;
 }
 
-$message = "";
-
-// Handle reject action (optional, but not needed for rejected list)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reject_id'])) {
-    $reject_id = intval($_POST['reject_id']);
-    $stmt = $conn->prepare("UPDATE pre_registration1 SET status = 'rejected' WHERE id = ?");
-    $stmt->bind_param("i", $reject_id);
-    if ($stmt->execute()) {
-        $message = "<div class='alert alert-success'>Registration rejected successfully.</div>";
-    } else {
-        $message = "<div class='alert alert-danger'>Error rejecting registration.</div>";
-    }
-    $stmt->close();
-}
-
 // Fetch only rejected pre-registrations
-
-$query = "SELECT id, full_name, email_address, phone_no, status, rejection_reason FROM pre_registration1 WHERE status = 'rejected'";$result = $conn->query($query);
+$query = "SELECT id, full_name, email_address, phone_no, status, rejection_reason FROM pre_registration1 WHERE status = 'rejected'";
+$result = $conn->query($query);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -40,7 +25,6 @@ $query = "SELECT id, full_name, email_address, phone_no, status, rejection_reaso
 <div class="container mt-5">
     <div class="col-md-10 offset-md-1 p-4 shadow rounded bg-white">
         <h4 class="text-danger mb-4 text-center">Rejected Student Registrations</h4>
-        <?php if ($message) echo $message; ?>
         <table class="table table-bordered table-striped">
             <thead>
                 <tr>
@@ -49,7 +33,7 @@ $query = "SELECT id, full_name, email_address, phone_no, status, rejection_reaso
                     <th>Email</th>
                     <th>Phone</th>
                     <th>Reason</th>
-                    <th>Action</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -65,7 +49,6 @@ $query = "SELECT id, full_name, email_address, phone_no, status, rejection_reaso
                             <td>
                                 <span class="badge bg-danger">Rejected</span>
                             </td>
-                           
                         </tr>
                     <?php endwhile; else: ?>
                         <tr>
