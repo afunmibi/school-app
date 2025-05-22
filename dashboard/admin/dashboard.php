@@ -191,7 +191,7 @@ if ($fetch_pre_register_students) {
                                 <td><?= $teacher_count++ ?></td>
                                 <td>
                                     <?php
-                                    $teacher_photo_path = "../uploads/" . (!empty($teacher['user_table_profile_photo']) ? htmlspecialchars($teacher['user_table_profile_photo']) : 'default.png');
+                                    $teacher_photo_path = "..teacher1//uploads/" . (!empty($teacher['user_table_profile_photo']) ? htmlspecialchars($teacher['user_table_profile_photo']) : 'default.png');
                                     if (empty($teacher['user_table_profile_photo']) || !file_exists(dirname(__DIR__) . '/uploads/' . $teacher['user_table_profile_photo'])) {
                                         $teacher_photo_path = "https://ui-avatars.com/api/?name=" . urlencode($teacher['user_table_full_name']) . "&background=303f9f&color=fff&size=40";
                                     }
@@ -228,45 +228,7 @@ if ($fetch_pre_register_students) {
             </table>
         </div>
         <hr>
-        <h4 class="text-primary module-heading">All Posted Assignments</h4>
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>#</th>
-                        <th>Title</th>
-                        <th>Subject</th>
-                        <th>Class</th>
-                        <th>Teacher</th>
-                        <th>Details</th>
-                        <th>Due Date</th>
-                        <th>Date Posted</th>
-                        <th>Submissions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($assignments)): ?>
-                        <?php $i = 1; foreach ($assignments as $row): ?>
-                            <tr>
-                                <td><?= $i++ ?></td>
-                                <td><?= htmlspecialchars($row['title']) ?></td>
-                                <td><?= htmlspecialchars($row['subject']) ?></td>
-                                <td><?= htmlspecialchars($row['class']) ?></td>
-                                <td><?= htmlspecialchars($row['teacher_name']) ?></td>
-                                <td><?= nl2br(htmlspecialchars($row['details'])) ?></td>
-                                <td><?= htmlspecialchars($row['due_date']) ?></td>
-                                <td><?= htmlspecialchars($row['date_posted']) ?></td>
-                                <td>
-                                    <a href="view_submissions.php?assignment_id=<?= $row['id'] ?>" class="btn btn-sm btn-primary">View Submissions</a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="9" class="text-center">No assignments posted yet.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+       
         <hr>
         <h4 class="text-primary module-heading">Quick Actions</h4>
         <div class="row g-3">
@@ -302,8 +264,8 @@ if ($fetch_pre_register_students) {
                     <tr>
                         <td><?= $s++ ?></td>
                         <td><?= htmlspecialchars($student['full_name']) ?></td>
-                        <td><?= htmlspecialchars($student['email']) ?></td>
-                        <td><?= htmlspecialchars($student['phone']) ?></td>
+                        <td><?= htmlspecialchars($student['email_address']) ?></td>
+                        <td><?= htmlspecialchars($student['phone_no']) ?></td>
                         <td><?= htmlspecialchars($student['class_requested'] ?? 'N/A') ?></td>
                         <td><?= htmlspecialchars($student['date_registered'] ?? '') ?></td>
                         <td>

@@ -31,16 +31,19 @@ $results = $conn->query("
     <table class="table table-bordered table-striped">
         <thead>
             <tr>
-                <th>#</th>
-                <th>Student ID</th>
-                <th>Student Name</th>
-                <th>Student Class</th>
-                <th>Subject</th>
-                <th>Assessment</th>
-                <th>Exam Score</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>#</th> <!-- Corresponds to final_exam_results.id (primary key, via $sn++) -->
+                <th>Student ID</th> <!-- final_exam_results.student_id -->
+                <th>Student Name</th> <!-- students.full_name (from JOIN) -->
+                <th>Class</th> <!-- final_exam_results.class -->
+                <th>Subject</th> <!-- final_exam_results.subject -->
+                <th>Term</th> <!-- final_exam_results.term -->
+                <th>Session</th> <!-- final_exam_results.session -->
+                <th>Assessments</th> <!-- final_exam_results.assessments -->
+                <th>Exam Score</th> <!-- final_exam_results.exam_score -->
+                <th>Final Score</th> <!-- final_exam_results.final_score -->
+                <th>Status</th> <!-- final_exam_results.status -->
+                <th>Result Date</th> <!-- final_exam_results.result_date -->
+                <th>Actions</th> 
             </tr>
         </thead>
         <tbody>
@@ -49,20 +52,23 @@ $results = $conn->query("
         if ($results && $results->num_rows > 0):
             while ($row = $results->fetch_assoc()):
         ?>
-            <tr>
+           <tr>
                 <td><?= $sn++ ?></td>
                 <td><?= htmlspecialchars($row['student_id']) ?></td>
-                <td><?= htmlspecialchars($row['full_name'] ?? '-') ?></td>
-                <td><?= htmlspecialchars($row['class_assigned'] ?? '-') ?></td>
+                <td><?= htmlspecialchars($row['full_name'] ?? '-') ?></td> <!-- s.full_name -->
+                <td><?= htmlspecialchars($row['class'] ?? '-') ?></td> <!-- r.class -->
                 <td><?= htmlspecialchars($row['subject']) ?></td>
+                <td><?= htmlspecialchars($row['term'] ?? '-') ?></td>
+                <td><?= htmlspecialchars($row['session'] ?? '-') ?></td>
                 <td><?= htmlspecialchars($row['assessments'] ?? 0) ?></td>
-                <td><?= htmlspecialchars($row['exam_scores'] ?? 0) ?></td>
-                <td><?= ($row['assessments'] ?? 0) + ($row['exam_scores'] ?? 0) ?></td>
+                <td><?= htmlspecialchars($row['exam_score'] ?? 0) ?></td>
+                <td><?= htmlspecialchars($row['final_score'] ?? 0) ?></td>
                 <td><?= htmlspecialchars($row['status']) ?></td>
+                <td><?= htmlspecialchars($row['result_date'] ?? '-') ?></td>
                 <td>
                     <a href="edit_result.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-sm">Edit</a>
                     <a href="delete_result.php?id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Delete this result?')">Delete</a>
-                </td>
+  </td>
             </tr>
         <?php
             endwhile;

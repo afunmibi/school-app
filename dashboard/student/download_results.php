@@ -17,6 +17,9 @@ $results_for_pdf = [];
 
 // Fetch student info
 $stmt = $conn->prepare("SELECT registration_id, full_name, passport_photo, student_id, class_assigned FROM students WHERE unique_id = ?");
+if (!$stmt) {
+    die("Error preparing student query: " . $conn->error);
+}
 $stmt->bind_param("s", $student_unique_id);
 $stmt->execute();
 $student_result = $stmt->get_result();
@@ -36,7 +39,7 @@ $class_assigned = $student_data['class_assigned'] ?? 'N/A';
 // Prepare passport image (if exists)
 $passport_src = '';
 if (!empty($passport)) {
-    $passport_path = '../../uploads/passports/' . $passport;
+    $passport_path = '../../Uploads/passports/' . $passport;
     if (file_exists($passport_path)) {
         $mime = mime_content_type($passport_path);
         $passport_data = base64_encode(file_get_contents($passport_path));
@@ -44,14 +47,45 @@ if (!empty($passport)) {
     }
 }
 
-// Fetch approved results
+// Get and validate filters from GET parameters
+$term = $_GET['term'] ?? '';
+$session_val = $_GET['session'] ?? '';
+$valid_terms = ['First Term', 'Second Term', 'Third Term'];
+if (!empty($term) && !in_array($term, $valid_terms)) {
+    $term = '';
+}
+if (!empty($session_val) && !preg_match('/^\d{4}\/\d{4}$/', $session_val)) {
+    $session_val = '';
+}
+
+// Fetch approved results from final_exam_results
 if ($student_registration_id) {
-    $stmt = $conn->prepare("SELECT subject, term, session, assessment_score, exam_score 
-                            FROM results 
-                            WHERE student_id = ? AND status = 'approved'
-                            ORDER BY session DESC, term DESC, subject ASC");
-    $stmt->bind_param("s", $student_registration_id);
-    $stmt->execute();
+    $query = "SELECT subject, term, session, assessments, exam_score, final_score, result_date 
+              FROM final_exam_results 
+              WHERE student_id = ? AND status = 'approved'";
+    $params = [$student_registration_id];
+    $types = "s";
+
+    if (!empty($term)) {
+        $query .= " AND term = ?";
+        $params[] = $term;
+        $types .= "s";
+    }
+    if (!empty($session_val)) {
+        $query .= " AND session = ?";
+        $params[] = $session_val;
+        $types .= "s";
+    }
+
+    $query .= " ORDER BY session DESC, term DESC, subject ASC";
+    $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        die("Error preparing results query: " . $conn->error);
+    }
+    $stmt->bind_param($types, ...$params);
+    if (!$stmt->execute()) {
+        die("Error executing results query: " . $stmt->error);
+    }
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
         $results_for_pdf[] = $row;
@@ -61,8 +95,17 @@ if ($student_registration_id) {
 
 // Build HTML for PDF
 $html = '
-    <h2 style="text-align:center;">Student Academic Results</h2>
-    <table width="100%" style="margin-bottom:20px;">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        h2 { text-align: center; }
+        .student-info { margin-bottom: 20px; }
+        .passport-img { float: right; }
+    </style>
+    <h2>Student Academic Results</h2>
+    <table class="student-info">
         <tr>
             <td width="80%">
                 <p><strong>Student Name:</strong> ' . htmlspecialchars($full_name) . '</p>
@@ -73,17 +116,16 @@ $html = '
             <td width="20%" style="text-align:right;">';
 
 if (!empty($passport_src)) {
-    $html .= '<img src="' . $passport_src . '" width="100" height="100" style="border:1px solid #000;" />';
+    $html .= '<img src="' . $passport_src . '" width="100" height="100" style="border:1px solid #000;" class="passport-img" />';
 }
 
 $html .= '</td>
         </tr>
     </table>
-    <hr>
-';
+    <hr>';
 
 if (!empty($results_for_pdf)) {
-    $html .= '<table border="1" cellpadding="8" cellspacing="0" width="100%">
+    $html .= '<table>
                 <thead>
                     <tr>
                         <th>Subject</th>
@@ -92,11 +134,13 @@ if (!empty($results_for_pdf)) {
                         <th>Assessment</th>
                         <th>Exam</th>
                         <th>Total</th>
+                        <th>Final Score</th>
+                        <th>Result Date</th>
                     </tr>
                 </thead>
                 <tbody>';
     foreach ($results_for_pdf as $row) {
-        $assessment = is_numeric($row['assessment_score']) ? $row['assessment_score'] : 0;
+        $assessment = is_numeric($row['assessments']) ? $row['assessments'] : 0;
         $exam = is_numeric($row['exam_score']) ? $row['exam_score'] : 0;
         $total = $assessment + $exam;
         $html .= '<tr>
@@ -106,6 +150,8 @@ if (!empty($results_for_pdf)) {
                     <td>' . htmlspecialchars($assessment) . '</td>
                     <td>' . htmlspecialchars($exam) . '</td>
                     <td><strong>' . htmlspecialchars($total) . '</strong></td>
+                    <td>' . htmlspecialchars($row['final_score'] ?? '') . '</td>
+                    <td>' . htmlspecialchars($row['result_date'] ?? '') . '</td>
                   </tr>';
     }
     $html .= '</tbody></table>';
@@ -113,9 +159,10 @@ if (!empty($results_for_pdf)) {
     $html .= '<p style="text-align:center;">No approved results available for you at the moment.</p>';
 }
 
-// Setup DomPDF
+// Setup Dompdf
 $options = new Options();
 $options->set('isHtml5ParserEnabled', true);
+$options->set('isRemoteEnabled', true); // Enable loading remote images (for passport)
 $dompdf = new Dompdf($options);
 $dompdf->loadHtml($html);
 $dompdf->setPaper('A4', 'portrait');

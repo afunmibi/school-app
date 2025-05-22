@@ -8,7 +8,7 @@
     <div class="mb-3">
     <label for="profile_photo" class="form-label">Profile Photo</label>
     <input type="file" class="form-control" name="profile_photo" id="profile_photo" accept="image/*" onchange="previewImage(event)">
-    <img id="preview" src="<?= $teacher['profile_photo'] ? '../uploads/' . $teacher['profile_photo'] : 'https://via.placeholder.com/150' ?>" alt="Preview" class="mt-3 rounded" style="max-width: 200px; height: auto;">
+    <img id="preview" src="<?= $teacher['profile_photo'] ? 'uploads/' . $teacher['profile_photo'] : 'https://via.placeholder.com/150' ?>" alt="Preview" class="mt-3 rounded" style="max-width: 200px; height: auto;">
 </div>
 <script>
 function previewImage(event) {

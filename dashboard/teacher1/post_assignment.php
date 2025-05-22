@@ -1,11 +1,10 @@
-
 <?php
 session_start();
 include "../../config.php";
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// ✅ Only allow teachers
+// ✅ Only allow teachers to access this page
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
     header("Location: ../../index.php");
     exit;
@@ -19,19 +18,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $details = $_POST['details'];
     $due_date = $_POST['due_date'];
 
-    $stmt = $conn->prepare("INSERT INTO assignments (title, description, teacher_id, class, subject, due_date) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssisss", $title, $details, $teacher_id, $class, $subject, $due_date);
+    // ✅ Prepare the SQL query with proper placeholders
+    $stmt = $conn->prepare("INSERT INTO assignments (title, description, teacher_id, details, class, subject, due_date) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?)");
 
+    // ✅ Bind parameters correctly
+    $stmt->bind_param("ssissss", $title, $details, $teacher_id, $details, $class, $subject, $due_date);
+
+    // ✅ Execute the query and handle potential errors
     if ($stmt->execute()) {
         echo "<p style='color: green;'>✅ Assignment posted successfully.</p>";
     } else {
         echo "<p style='color: red;'>❌ Error: " . $stmt->error . "</p>";
     }
+
+    // ✅ Close the statement
+    $stmt->close();
 }
+
+// ✅ Close the database connection (optional but recommended)
+$conn->close();
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Post Assignment</title>
     <meta charset="UTF-8">
@@ -45,7 +55,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background: #fff;
             border-radius: 1rem;
             box-shadow: 0 0 24px rgba(44,62,80,0.10);
-            padding: 2rem 2rem 1.5rem 2rem;
+            padding: 2rem;
         }
         .form-label { font-weight: 500; }
     </style>
@@ -91,7 +101,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
         <div class="text-center mb-3">
             <a href="./dashboard.php" class="btn btn-secondary">Back to Dashboard</a>   
+        </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+

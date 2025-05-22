@@ -12,22 +12,34 @@ $student_unique_id = $_SESSION['student_id'];
 $student_registration_id = null;
 $results_data = [];
 
-// Fetch the student's registration_id using their unique_id from the session
+// Fetch the student's registration_id from the students table
 $stmt = $conn->prepare("SELECT registration_id FROM students WHERE unique_id = ?");
+if (!$stmt) {
+    die("Error preparing query: " . $conn->error);
+}
 $stmt->bind_param("s", $student_unique_id);
 $stmt->execute();
 $stmt->bind_result($student_registration_id);
 $stmt->fetch();
 $stmt->close();
 
-// Get filters from GET parameters
+// Get and validate filters from GET parameters
 $term = $_GET['term'] ?? '';
 $session_val = $_GET['session'] ?? '';
+// Validate term
+$valid_terms = ['First Term', 'Second Term', 'Third Term'];
+if (!empty($term) && !in_array($term, $valid_terms)) {
+    $term = '';
+}
+// Validate session format (e.g., 2024/2025)
+if (!empty($session_val) && !preg_match('/^\d{4}\/\d{4}$/', $session_val)) {
+    $session_val = '';
+}
 
 if ($student_registration_id) {
-    // Fetch assessment and exam scores from 'results' table
-    $query = "SELECT subject, term, session, assessment_score, exam_score 
-              FROM results 
+    // Fetch data from final_exam_results
+    $query = "SELECT subject, term, session, assessments, exam_score, final_score, full_name, class, result_date 
+              FROM final_exam_results 
               WHERE student_id = ? AND status = 'approved'";
     $params = [$student_registration_id];
     $types = "s";
@@ -45,67 +57,29 @@ if ($student_registration_id) {
 
     $query .= " ORDER BY session DESC, term DESC, subject ASC";
     $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        die("Error preparing query: " . $conn->error);
+    }
     $stmt->bind_param($types, ...$params);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        die("Error executing query: " . $stmt->error);
+    }
     $result = $stmt->get_result();
 
-    // Collect results by subject for merging with final_exam_results
-    $subject_results = [];
     while ($row = $result->fetch_assoc()) {
-        $key = $row['subject'] . '|' . $row['term'] . '|' . $row['session'];
-        $subject_results[$key] = [
+        $results_data[] = [
             'subject' => $row['subject'],
             'term' => $row['term'],
             'session' => $row['session'],
-            'assessment_score' => $row['assessment_score'],
+            'assessments' => $row['assessments'],
             'exam_score' => $row['exam_score'],
-            'final_exam_result' => null // to be filled from final_exam_results table
+            'final_score' => $row['final_score'],
+            'full_name' => $row['full_name'],
+            'class' => $row['class'],
+            'result_date' => $row['result_date']
         ];
     }
     $stmt->close();
-
-    // Fetch final exam results from 'final_exam_results' table
-    $query2 = "SELECT subject, term, session, final_score 
-               FROM final_exam_results 
-               WHERE student_id = ?";
-    $params2 = [$student_registration_id];
-    $types2 = "s";
-    if (!empty($term)) {
-        $query2 .= " AND term = ?";
-        $params2[] = $term;
-        $types2 .= "s";
-    }
-    if (!empty($session_val)) {
-        $query2 .= " AND session = ?";
-        $params2[] = $session_val;
-        $types2 .= "s";
-    }
-    $query2 .= " ORDER BY session DESC, term DESC, subject ASC";
-    $stmt2 = $conn->prepare($query2);
-    $stmt2->bind_param($types2, ...$params2);
-    $stmt2->execute();
-    $result2 = $stmt2->get_result();
-
-    while ($row2 = $result2->fetch_assoc()) {
-        $key = $row2['subject'] . '|' . $row2['term'] . '|' . $row2['session'];
-        if (isset($subject_results[$key])) {
-            $subject_results[$key]['final_exam_result'] = $row2['final_score'];
-        } else {
-            // If no assessment/exam score, still show final result
-            $subject_results[$key] = [
-                'subject' => $row2['subject'],
-                'term' => $row2['term'],
-                'session' => $row2['session'],
-                'assessment_score' => null,
-                'exam_score' => null,
-                'final_exam_result' => $row2['final_score']
-            ];
-        }
-    }
-    $stmt2->close();
-
-    // Prepare for display
-    $results_data = array_values($subject_results);
 }
 ?>
 <!DOCTYPE html>
@@ -120,6 +94,9 @@ if ($student_registration_id) {
 <div class="container mt-5">
     <div class="col-md-10 offset-md-1 bg-white shadow p-4 rounded">
         <h4 class="text-center text-primary mb-4">Your Approved Results</h4>
+        <?php if ($student_registration_id && !empty($results_data)): ?>
+            <h5 class="text-center">Student: <?= htmlspecialchars($results_data[0]['full_name']) ?> | Class: <?= htmlspecialchars($results_data[0]['class']) ?></h5>
+        <?php endif; ?>
         <form method="get" class="row g-3 mb-3">
             <div class="col-md-4">
                 <select name="term" class="form-control">
@@ -150,7 +127,8 @@ if ($student_registration_id) {
                             <th scope="col">Assessment Score</th>
                             <th scope="col">Exam Score</th>
                             <th scope="col">Total Score</th>
-                            <th scope="col">Final Exam Result</th>
+                            <th scope="col">Final Score</th>
+                            <th scope="col">Result Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -159,15 +137,16 @@ if ($student_registration_id) {
                                 <td><?= htmlspecialchars($row['subject']) ?></td>
                                 <td><?= htmlspecialchars($row['term']) ?></td>
                                 <td><?= htmlspecialchars($row['session']) ?></td>
-                                <td><?= htmlspecialchars($row['assessment_score']) ?></td>
-                                <td><?= htmlspecialchars($row['exam_score']) ?></td>
+                                <td><?= htmlspecialchars($row['assessments'] ?? '') ?></td>
+                                <td><?= htmlspecialchars($row['exam_score'] ?? '') ?></td>
                                 <td>
                                     <?php
-                                    $total = (is_numeric($row['assessment_score']) ? $row['assessment_score'] : 0) + (is_numeric($row['exam_score']) ? $row['exam_score'] : 0);
+                                    $total = (is_numeric($row['assessments']) ? $row['assessments'] : 0) + (is_numeric($row['exam_score']) ? $row['exam_score'] : 0);
                                     echo $total > 0 ? htmlspecialchars($total) : '';
                                     ?>
                                 </td>
-                                <td><?= htmlspecialchars($row['final_exam_result']) ?></td>
+                                <td><?= htmlspecialchars($row['final_score'] ?? '') ?></td>
+                                <td><?= htmlspecialchars($row['result_date'] ?? '') ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

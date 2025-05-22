@@ -75,6 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $full_name, $phone_no, $email_address, $status, $address, $age, $state_of_origin, $lga_origin, $state_of_residence, $lga_of_residence,
         $parent_name, $parent_address, $parent_occupation, $religion, $child_comment, $birth_certificate, $testimonial, $passport_photo, $class_assigned, $student_id, $id
     );
+    // Execute the statement
+
     if ($stmt->execute()) {
         $message = "<div class='alert alert-success'>Student updated successfully.</div>";
     } else {

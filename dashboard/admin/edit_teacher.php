@@ -171,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <label>Passport Photo</label>
                 <?php if ($passport_photo): ?>
                     <div class="mb-2">
-                        <img src="../../uploads/teachers/<?= htmlspecialchars($passport_photo) ?>" alt="Passport" style="max-width:80px;">
+                        <img src="../teacher1/uploads/teachers/<?= htmlspecialchars($passport_photo) ?>" alt="Passport" style="max-width:80px;">
                     </div>
                 <?php endif; ?>
                 <input type="file" name="passport_photo" class="form-control">

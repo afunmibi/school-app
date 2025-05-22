@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <div class="mb-2">
             <label>Exam Score</label>
-            <input type="number" name="exam_scores" class="form-control" value="<?= htmlspecialchars($row['exam_scores']) ?>" required>
+            <input type="number" name="exam_scores" class="form-control" value="<?= htmlspecialchars($row['exam_score']) ?>" required>
         </div>
         <div class="mb-2">
             <label>Status</label>
