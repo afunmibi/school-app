@@ -1,168 +1,160 @@
 <?php
 session_start();
-include "../../config.php";
+// echo "Session Unique ID: " . htmlspecialchars($_SESSION['student_unique_id']);
+// Include the database configuration file.
+require_once "../../config.php";
 
-// Check if student is logged in
-if (!isset($_SESSION['student_id'])) {
+
+
+
+// Enable full error reporting for development.
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+// Enable MySQLi error reporting to throw exceptions on errors, aiding debugging.
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+// Redirect if not logged in as student
+if (!isset($_SESSION['student_unique_id'])) {
     header("Location: student_login.php");
     exit;
 }
 
-$student_unique_id = $_SESSION['student_id'];
-$student_registration_id = null;
-$results_data = [];
+// Get student unique ID from session
+$student_unique_id = $_SESSION['student_unique_id'];
+$full_name = ""; // Initialize full_name
 
-// Fetch the student's registration_id from the students table
-$stmt = $conn->prepare("SELECT registration_id FROM students WHERE unique_id = ?");
-if (!$stmt) {
-    die("Error preparing query: " . $conn->error);
+// Fetch student info (full_name) from final_exam_results (limit 1) using unique_id
+$stmt_name = $conn->prepare("SELECT full_name FROM final_exam_results WHERE unique_id = ? LIMIT 1");
+if ($stmt_name) {
+    $stmt_name->bind_param("s", $student_unique_id);
+    $stmt_name->execute();
+    $res_name = $stmt_name->get_result();
+    $student = $res_name->fetch_assoc();
+    $stmt_name->close();
+    if ($student) {
+        $full_name = $student['full_name'];
+    } else {
+        echo "<div class='alert alert-danger mt-5 text-center'>Student record not found.</div>";
+        exit;
+    }
+} else {
+    echo "<div class='alert alert-danger mt-5 text-center'>Error preparing statement for student name.</div>";
+    exit;
 }
-$stmt->bind_param("s", $student_unique_id);
-$stmt->execute();
-$stmt->bind_result($student_registration_id);
-$stmt->fetch();
-$stmt->close();
 
-// Get and validate filters from GET parameters
+// Get filter values from GET params
 $term = $_GET['term'] ?? '';
 $session_val = $_GET['session'] ?? '';
-// Validate term
-$valid_terms = ['First Term', 'Second Term', 'Third Term'];
-if (!empty($term) && !in_array($term, $valid_terms)) {
-    $term = '';
+
+// Prepare query to fetch results with filters using unique_id
+$query = "SELECT * FROM final_exam_results WHERE unique_id = ?";
+$params = [$student_unique_id];
+$types = "s";
+
+if (!empty($term)) {
+    $query .= " AND term = ?";
+    $types .= "s";
+    $params[] = $term;
 }
-// Validate session format (e.g., 2024/2025)
-if (!empty($session_val) && !preg_match('/^\d{4}\/\d{4}$/', $session_val)) {
-    $session_val = '';
+
+if (!empty($session_val)) {
+    $query .= " AND session = ?";
+    $types .= "s";
+    $params[] = $term;
 }
 
-if ($student_registration_id) {
-    // Fetch data from final_exam_results
-    $query = "SELECT subject, term, session, assessments, exam_score, final_score, full_name, class, result_date 
-              FROM final_exam_results 
-              WHERE student_id = ? AND status = 'approved'";
-    $params = [$student_registration_id];
-    $types = "s";
-
-    if (!empty($term)) {
-        $query .= " AND term = ?";
-        $params[] = $term;
-        $types .= "s";
-    }
-    if (!empty($session_val)) {
-        $query .= " AND session = ?";
-        $params[] = $session_val;
-        $types .= "s";
-    }
-
-    $query .= " ORDER BY session DESC, term DESC, subject ASC";
-    $stmt = $conn->prepare($query);
-    if (!$stmt) {
-        die("Error preparing query: " . $conn->error);
-    }
-    $stmt->bind_param($types, ...$params);
-    if (!$stmt->execute()) {
-        die("Error executing query: " . $stmt->error);
-    }
-    $result = $stmt->get_result();
-
-    while ($row = $result->fetch_assoc()) {
-        $results_data[] = [
-            'subject' => $row['subject'],
-            'term' => $row['term'],
-            'session' => $row['session'],
-            'assessments' => $row['assessments'],
-            'exam_score' => $row['exam_score'],
-            'final_score' => $row['final_score'],
-            'full_name' => $row['full_name'],
-            'class' => $row['class'],
-            'result_date' => $row['result_date']
-        ];
-    }
-    $stmt->close();
+$stmt_results = $conn->prepare($query);
+if ($stmt_results) {
+    $stmt_results->bind_param($types, ...$params);
+    $stmt_results->execute();
+    $results = $stmt_results->get_result();
+    $stmt_results->close();
+} else {
+    echo "<div class='alert alert-danger mt-5 text-center'>Error preparing filtered results statement.</div>";
+    exit;
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>View Results</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="UTF-8" />
+    <title>Student Results</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
 </head>
-<body class="bg-light">
+<body>
 <div class="container mt-5">
-    <div class="col-md-10 offset-md-1 bg-white shadow p-4 rounded">
-        <h4 class="text-center text-primary mb-4">Your Approved Results</h4>
-        <?php if ($student_registration_id && !empty($results_data)): ?>
-            <h5 class="text-center">Student: <?= htmlspecialchars($results_data[0]['full_name']) ?> | Class: <?= htmlspecialchars($results_data[0]['class']) ?></h5>
-        <?php endif; ?>
-        <form method="get" class="row g-3 mb-3">
-            <div class="col-md-4">
-                <select name="term" class="form-control">
-                    <option value="">-- Select Term --</option>
-                    <option value="First Term" <?= $term == 'First Term' ? 'selected' : '' ?>>First Term</option>
-                    <option value="Second Term" <?= $term == 'Second Term' ? 'selected' : '' ?>>Second Term</option>
-                    <option value="Third Term" <?= $term == 'Third Term' ? 'selected' : '' ?>>Third Term</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <input type="text" name="session" class="form-control" placeholder="Session (e.g. 2024/2025)" value="<?= htmlspecialchars($session_val) ?>">
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary w-100">Filter</button>
-            </div>
-        </form>
-        <div class="text-center mb-3">
-            <a href="download_results.php<?= ($term || $session_val) ? '?term=' . urlencode($term) . '&session=' . urlencode($session_val) : '' ?>" target="_blank" class="btn btn-info">Download All Results Summary (PDF)</a>
-        </div>
-        <?php if (!empty($results_data)): ?>
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped table-hover">
-                    <thead class="table-primary">
-                        <tr>
-                            <th scope="col">Subject</th>
-                            <th scope="col">Term</th>
-                            <th scope="col">Session</th>
-                            <th scope="col">Assessment Score</th>
-                            <th scope="col">Exam Score</th>
-                            <th scope="col">Total Score</th>
-                            <th scope="col">Final Score</th>
-                            <th scope="col">Result Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($results_data as $row): ?>
-                            <tr>
-                                <td><?= htmlspecialchars($row['subject']) ?></td>
-                                <td><?= htmlspecialchars($row['term']) ?></td>
-                                <td><?= htmlspecialchars($row['session']) ?></td>
-                                <td><?= htmlspecialchars($row['assessments'] ?? '') ?></td>
-                                <td><?= htmlspecialchars($row['exam_score'] ?? '') ?></td>
-                                <td>
-                                    <?php
-                                    $total = (is_numeric($row['assessments']) ? $row['assessments'] : 0) + (is_numeric($row['exam_score']) ? $row['exam_score'] : 0);
-                                    echo $total > 0 ? htmlspecialchars($total) : '';
-                                    ?>
-                                </td>
-                                <td><?= htmlspecialchars($row['final_score'] ?? '') ?></td>
-                                <td><?= htmlspecialchars($row['result_date'] ?? '') ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php elseif ($student_registration_id === null): ?>
-            <p class="alert alert-warning text-center">Your student profile could not be fully loaded. Please contact administration.</p>
-        <?php else: ?>
-            <p class="alert alert-info text-center">No approved results available for you at the moment.</p>
-        <?php endif; ?>
-        <hr>
-        <div class="text-center">
-            <a href="dashboard.php" class="btn btn-secondary">Back to Dashboard</a>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Results for <?= htmlspecialchars($full_name) ?></h4>
+        <div>
+            <a href="export_results_excel.php<?= !empty($_SERVER['QUERY_STRING']) ? '?'.$_SERVER['QUERY_STRING'] : '' ?>" class="btn btn-success btn-sm">Export to Excel</a>
+            <a href="generate_result_pdf.php<?= !empty($_SERVER['QUERY_STRING']) ? '?'.$_SERVER['QUERY_STRING'] : '' ?>" class="btn btn-danger btn-sm">Download PDF</a>
         </div>
     </div>
+
+    <form method="GET" class="row g-3 mb-4">
+        <h5 class="mb-3">Filter Results by Term and Session</h5>
+
+        <div class="col-md-4">
+            <label class="form-label">Term</label>
+            <select name="term" class="form-select">
+                <option value="">-- All Terms --</option>
+                <option value="First Term" <?= ($term == 'First Term') ? 'selected' : '' ?>>First Term</option>
+                <option value="Second Term" <?= ($term == 'Second Term') ? 'selected' : '' ?>>Second Term</option>
+                <option value="Third Term" <?= ($term == 'Third Term') ? 'selected' : '' ?>>Third Term</option>
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">Session</label>
+            <input type="text" name="session" value="<?= htmlspecialchars($session_val) ?>" class="form-control" placeholder="e.g., 2024/2025" />
+        </div>
+
+        <div class="col-md-4 align-self-end">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Subject</th>
+                    <th>Assessment</th>
+                    <th>Exam Score</th>
+                    <th>Final Score</th>
+                    <th>Term</th>
+                    <th>Session</th>
+                    <th>Class</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if ($results->num_rows > 0): ?>
+                <?php while ($row = $results->fetch_assoc()): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($row['subject']) ?></td>
+                        <td><?= htmlspecialchars($row['assessments']) ?></td>
+                        <td><?= htmlspecialchars($row['exam_score']) ?></td>
+                        <td><?= htmlspecialchars($row['final_score']) ?></td>
+                        <td><?= htmlspecialchars($row['term']) ?></td>
+                        <td><?= htmlspecialchars($row['session']) ?></td>
+                        <td><?= htmlspecialchars($row['class_assigned']) ?></td>
+                        <td><?= htmlspecialchars($row['result_date']) ?></td>
+                    </tr>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="8" class="text-center text-danger">No results found. Try selecting different Term or Session.</td>
+                </tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <a href="dashboard.php" class="btn btn-outline-secondary btn-sm me-2">Dashboard</a>
+    <a href="logout.php" class="btn btn-outline-danger btn-sm">Logout</a>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

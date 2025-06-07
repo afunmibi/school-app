@@ -27,7 +27,7 @@ $results = $conn->query("
 <body>
 <div class="container mt-5">
     <h4 class="mb-4 text-primary">Manage Results</h4>
-    <a href="add_result.php" class="btn btn-success mb-3">Add New Result</a>
+    <a href="../teacher1/manage_record_ca_exam_results.php" class="btn btn-success mb-3">Add New Result</a>
     <table class="table table-bordered table-striped">
         <thead>
             <tr>

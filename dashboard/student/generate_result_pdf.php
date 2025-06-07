@@ -1,157 +1,174 @@
 <?php
+// Enable strict error reporting for development.
+declare(strict_types=1);
+
+// Start the session.
 session_start();
-include "../../config.php";
-require '../../vendor/autoload.php'; // DomPDF path
 
-use Dompdf\Dompdf;
-use Dompdf\Options;
+// Include the database configuration file.
+require_once "../../config.php";
 
-// 1. Authenticate Student
-if (!isset($_SESSION['student_id'])) {
+// Include the Dompdf library (adjust the path if necessary)
+require_once('../../vendor/autoload.php');
+
+// Check if the student is logged in. Redirect if not.
+if (!isset($_SESSION['student_unique_id']) || empty($_SESSION['student_unique_id'])) {
     header("Location: student_login.php");
     exit;
 }
 
-$student_unique_id = $_SESSION['student_id'];
+$studentUniqueId = $_SESSION['student_unique_id'];
+$studentFullName = '';
+$studentClass = '';
+$studentPassport = '';
 
-// 2. Fetch Student Info
-$stmt = $conn->prepare("SELECT registration_id, full_name, student_id AS official_student_id, class_assigned, passport_photo FROM students WHERE unique_id = ?");
-$stmt->bind_param("s", $student_unique_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$student_data = $result->fetch_assoc();
-$stmt->close();
-
-if (!$student_data) {
-    die("Error: Student details not found.");
+// Fetch student details
+$studentDetailsStmt = $conn->prepare("SELECT full_name, class_assigned, passport_photo FROM students WHERE unique_id = ?");
+if ($studentDetailsStmt) {
+    $studentDetailsStmt->bind_param("s", $studentUniqueId);
+    $studentDetailsStmt->execute();
+    $studentDetailsResult = $studentDetailsStmt->get_result();
+    if ($studentDetailsRow = $studentDetailsResult->fetch_assoc()) {
+        $studentFullName = $studentDetailsRow['full_name'];
+        $studentClass = $studentDetailsRow['class_assigned'];
+        $studentPassport = $studentDetailsRow['passport_photo'];
+    }
+    $studentDetailsStmt->close();
+} else {
+    error_log("Generate PDF Error: Prepare query for student details failed: " . $conn->error);
+    echo "<div class='alert alert-danger mt-3'>Error fetching student details for PDF.</div>";
+    exit;
 }
 
-$student_registration_id = $student_data['registration_id'];
-
-// 3. Get Filters from URL (Term and Session are optional)
+// Get filter values from GET params
 $term = $_GET['term'] ?? '';
-$session_val = $_GET['session'] ?? '';
+$sessionVal = $_GET['session'] ?? '';
 
-// 4. Fetch Results for the logged-in student
-$results = [];
-$query = "SELECT subject, exam_score, assessment_score, term, session 
-          FROM results 
-          WHERE student_id = ? AND status = 'approved'";
-$params = [$student_registration_id];
+// Prepare query to fetch results with filters using unique_id
+$query = "SELECT subject, assessments, exam_score, final_score, term, session, class_assigned, result_date FROM final_exam_results WHERE unique_id = ?";
+$params = [$studentUniqueId];
 $types = "s";
 
 if (!empty($term)) {
     $query .= " AND term = ?";
+    $types .= "s";
     $params[] = $term;
-    $types .= "s";
 }
-if (!empty($session_val)) {
+
+if (!empty($sessionVal)) {
     $query .= " AND session = ?";
-    $params[] = $session_val;
     $types .= "s";
+    $params[] = $sessionVal;
 }
-$query .= " ORDER BY session DESC, term DESC, subject ASC";
 
-$stmt = $conn->prepare($query);
-if ($stmt) {
-    $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        // Calculate total score
-        $row['total_score'] = (is_numeric($row['assessment_score']) ? $row['assessment_score'] : 0) + (is_numeric($row['exam_score']) ? $row['exam_score'] : 0);
-        $results[] = $row;
-    }
-    $stmt->close();
+$stmtResults = $conn->prepare($query);
+if ($stmtResults) {
+    $stmtResults->bind_param($types, ...$params);
+    $stmtResults->execute();
+    $results = $stmtResults->get_result();
 } else {
-    die("Error preparing statement: " . $conn->error);
-}
-$conn->close();
-
-// 5. Build HTML for PDF
-$html = '
-<style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h2, h3 { text-align: center; }
-    .student-details-container { margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; overflow: auto; }
-    .student-text-details { float: left; width: 70%; }
-    .student-details p { margin: 5px 0; }
-    .student-photo { float: right; width: 25%; text-align: right; }
-    .student-photo img { max-width: 100px; max-height: 120px; border: 1px solid #ccc; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    .clearfix::after { content: ""; clear: both; display: table; }
-    th { background-color: #f2f2f2; }
-    .no-results { text-align: center; color: #777; margin-top: 30px; }
-</style>
-<h2>Student Academic Report</h2>';
-
-$passport_photo_html = '';
-if (!empty($student_data['passport_photo'])) {
-    $image_server_path = dirname(dirname(dirname(__FILE__))) . '/uploads/passports/' . htmlspecialchars($student_data['passport_photo']);
-    if (file_exists($image_server_path)) {
-        $type = pathinfo($image_server_path, PATHINFO_EXTENSION);
-        if (in_array(strtolower($type), ['jpg', 'jpeg', 'png', 'gif'])) {
-            $data = file_get_contents($image_server_path);
-            $base64_image = 'data:image/' . $type . ';base64,' . base64_encode($data);
-            $passport_photo_html = '<img src="' . $base64_image . '" alt="Student Photo">';
-        }
-    }
+    echo "<div class='alert alert-danger mt-3'>Error preparing results statement for PDF.</div>";
+    exit;
 }
 
-$html .= '<div class="student-details-container clearfix">';
-$html .= '  <div class="student-text-details">';
-$html .= '    <p><strong>Name:</strong> ' . htmlspecialchars($student_data['full_name']) . '</p>';
-$html .= '    <p><strong>Student ID (Official):</strong> ' . htmlspecialchars($student_data['official_student_id']) . '</p>';
-$html .= '    <p><strong>Class:</strong> ' . htmlspecialchars($student_data['class_assigned']) . '</p>';
-if (!empty($term)) { $html .= '<p><strong>Term:</strong> ' . htmlspecialchars($term) . '</p>'; }
-if (!empty($session_val)) { $html .= '<p><strong>Session:</strong> ' . htmlspecialchars($session_val) . '</p>'; }
-$html .= '  </div>';
-$html .= '  <div class="student-photo">' . $passport_photo_html . '</div>';
-$html .= '</div>';
-
-if (!empty($results)) {
-    $html .= '
+// Start buffering the output
+ob_start();
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Results</title>
+    <style>
+        body { font-family: sans-serif; font-size: 10pt; }
+        h1 { text-align: center; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+        th { background-color: #f0f0f0; }
+        .student-info { margin-bottom: 15px; display: flex; align-items: center; }
+        .label { font-weight: bold; margin-right: 10px; }
+        .passport-photo { width: 100px; height: 100px; border-radius: 5px; margin-right: 20px; object-fit: cover; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>Student Results</h1>
+    <div class="student-info">
+        <?php
+        $passportPath = '../../uploads/passports/' . htmlspecialchars($studentPassport);
+        if (!empty($studentPassport) && file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $passportPath)): ?>
+            <img src="<?= $passportPath ?>" alt="Student Passport" class="passport-photo">
+        <?php else: ?>
+            <img src="https://ui-avatars.com/api/?name=<?= urlencode($studentFullName) ?>&size=100" alt="Default Avatar" class="passport-photo">
+        <?php endif; ?>
+        <div>
+            <div><span class="label">Name:</span> <?= htmlspecialchars($studentFullName) ?></div>
+            <div><span class="label">Class:</span> <?= htmlspecialchars($studentClass) ?></div>
+            <?php if (!empty($term)): ?><div><span class="label">Term:</span> <?= htmlspecialchars($term) ?></div><?php endif; ?>
+            <?php if (!empty($sessionVal)): ?><div><span class="label">Session:</span> <?= htmlspecialchars($sessionVal) ?></div><?php endif; ?>
+        </div>
+    </div>
     <table>
         <thead>
             <tr>
                 <th>Subject</th>
-                <th>Assessment Score</th>
+                <th>Assessment</th>
                 <th>Exam Score</th>
-                <th>Total Score</th>
+                <th>Final Score</th>
                 <th>Term</th>
                 <th>Session</th>
+                <th>Class</th>
+                <th>Date</th>
             </tr>
         </thead>
-        <tbody>';
-    foreach ($results as $row) {
-        $html .= '<tr>
-                    <td>' . htmlspecialchars($row['subject']) . '</td>
-                    <td>' . htmlspecialchars($row['assessment_score']) . '</td>
-                    <td>' . htmlspecialchars($row['exam_score']) . '</td>
-                    <td><strong>' . htmlspecialchars($row['total_score']) . '</strong></td>
-                    <td>' . htmlspecialchars($row['term']) . '</td>
-                    <td>' . htmlspecialchars($row['session']) . '</td>
-                  </tr>';
-    }
-    $html .= '</tbody></table>';
-} else {
-    $html .= '<p class="no-results">No approved results found for the selected criteria.</p>';
-}
+        <tbody>
+            <?php if ($results->num_rows > 0): ?>
+                <?php while ($row = $results->fetch_assoc()): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($row['subject']) ?></td>
+                        <td><?= htmlspecialchars($row['assessments']) ?></td>
+                        <td><?= htmlspecialchars($row['exam_score']) ?></td>
+                        <td><?= htmlspecialchars($row['final_score']) ?></td>
+                        <td><?= htmlspecialchars($row['term']) ?></td>
+                        <td><?= htmlspecialchars($row['session']) ?></td>
+                        <td><?= htmlspecialchars($row['class_assigned']) ?></td>
+                        <td><?= htmlspecialchars($row['result_date']) ?></td>
+                    </tr>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <tr><td colspan="8">No results found.</td></tr>
+            <?php endif; ?>
+        </tbody>
+    </table>
+</body>
+</html>
+<?php
+// Get the buffered content
+$html = ob_get_clean();
 
-// 6. Generate PDF
-$options = new Options();
-$options->set('isHtml5ParserEnabled', true);
-$options->set('isRemoteEnabled', true);
-$dompdf = new Dompdf($options);
+// Instantiate Dompdf class
+$dompdf = new Dompdf\Dompdf();
+
+// Set base path for Dompdf to access local files
+$dompdf->setBasePath(realpath($_SERVER["DOCUMENT_ROOT"]));
+
+// Load HTML content
 $dompdf->loadHtml($html);
+
+// (Optional) Set paper size and orientation
 $dompdf->setPaper('A4', 'portrait');
+
+// Render the HTML as PDF
 $dompdf->render();
 
-$filename = "results_" . htmlspecialchars($student_data['official_student_id'] ?: $student_unique_id);
-if (!empty($term)) $filename .= "_" . str_replace(' ', '_', $term);
-if (!empty($session_val)) $filename .= "_" . str_replace('/', '-', $session_val);
-$filename .= ".pdf";
+// Output the generated PDF to Browser (inline view)
+$dompdf->stream("student_results.pdf", ["Attachment" => 1]); // 1 for download, 0 for inline
 
-$dompdf->stream($filename, ["Attachment" => false]);
-exit;
+// Close database connection
+if (isset($stmtResults)) {
+    $stmtResults->close();
+}
+if (isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
+    $conn->close();
+}
+?>

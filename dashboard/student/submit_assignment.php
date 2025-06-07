@@ -7,9 +7,9 @@ if (!isset($_SESSION['student_id'])) {
     header("Location: student_login.php");
     exit;
 }
-
+$student_unique_id = $_SESSION['student_unique_id'] ?? null;
 $assignment_id = $_POST['assignment_id'] ?? $_GET['assignment_id'] ?? null;
-$student_unique_id = $_SESSION['student_id'];
+
 $submission_message = "";
 $submission = null;
 $assignment_details = null;

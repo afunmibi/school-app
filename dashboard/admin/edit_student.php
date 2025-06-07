@@ -66,13 +66,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Update student
     $stmt = $conn->prepare("UPDATE students SET
-        full_name=?, phone_no=?, email_address=?, status=?, address=?, age=?, state_of_origin=?, lga_origin=?, state_of_residence=?, lga_of_residence=?,
+        full_name=?, phone_no=?, email_address=?, status=?, address=?, dob=?, state_of_origin=?, lga_origin=?, state_of_residence=?, lga_of_residence=?,
         parent_name=?, parent_address=?, parent_occupation=?, religion=?, child_comment=?, birth_certificate=?, testimonial=?, passport_photo=?, class_assigned=?, student_id=?
         WHERE id=?
     ");
     $stmt->bind_param(
         "ssssssssssssssssssssi",
-        $full_name, $phone_no, $email_address, $status, $address, $age, $state_of_origin, $lga_origin, $state_of_residence, $lga_of_residence,
+        $full_name, $phone_no, $email_address, $status, $address, $dob, $state_of_origin, $lga_origin, $state_of_residence, $lga_of_residence,
         $parent_name, $parent_address, $parent_occupation, $religion, $child_comment, $birth_certificate, $testimonial, $passport_photo, $class_assigned, $student_id, $id
     );
     // Execute the statement
@@ -83,8 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = "<div class='alert alert-danger'>Error updating student: " . htmlspecialchars($stmt->error) . "</div>";
     }
     $stmt->close();
-    // Refresh student data
-    header("Location: edit_student.php?id=" . $id);
+    // Redirect back to add_student.php
+    header("Location: add_student.php?msg=" . urlencode(strip_tags($message)));
     exit; // Ensure script stops after redirect
 }
 ?>
@@ -103,7 +103,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 <div class="container py-4">
     <div class="row justify-content-center">
-        <!-- Form Section -->
         <div class="col-lg-6">
     <div class="card p-4">
         <h4 class="text-primary mb-3">Edit Student</h4>
@@ -120,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </select>
             </div>
             <div class="mb-2"><label>Address</label><input type="text" name="address" value="<?= htmlspecialchars($student['address'] ?? '') ?>" class="form-control"></div>
-            <div class="mb-2"><label>Age</label><input type="number" name="age" value="<?= htmlspecialchars($student['age'] ?? '') ?>" class="form-control"></div>
+            <div class="mb-2"><label>DOB</label><input type="number" name="age" value="<?= htmlspecialchars($student['dob'] ?? '') ?>" class="form-control"></div>
             <div class="mb-2"><label>State of Origin</label><input type="text" name="state_of_origin" value="<?= htmlspecialchars($student['state_of_origin'] ?? '') ?>" class="form-control"></div>
             <div class="mb-2"><label>LGA of Origin</label><input type="text" name="lga_origin" value="<?= htmlspecialchars($student['lga_origin'] ?? '') ?>" class="form-control"></div>
             <div class="mb-2"><label>State of Residence</label><input type="text" name="state_of_residence" value="<?= htmlspecialchars($student['state_of_residence'] ?? '') ?>" class="form-control"></div>
@@ -170,9 +169,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
     </div>
     <div class="text-center mt-3">
-        <a href="manage_students.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Manage Students</a>
+        <a href="add_student.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Manage Students</a>
     </div>
-</div>    </div>
 </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

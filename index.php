@@ -64,6 +64,7 @@ $conn->close();
     <link rel="stylesheet" href="assets/bootstrap-5.3.3-dist/bootstrap-5.3.3-dist/css/bootstrap.min.css">
 </head>
 <body class="bg-light">
+    <?php include "./header.php"; ?>
     <div class="container mt-5">
         <div class="row justify-content-center">
             <div class="col-md-6">
@@ -100,5 +101,6 @@ $conn->close();
         </div>
         
     </div>
+    <?php include "./footer.php";   ?>
 </body>
 </html>

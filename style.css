@@ -1,0 +1,286 @@
+/* Universal Box-Sizing and Font */
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    font-family: 'Roboto', Arial, sans-serif;
+}
+
+body {
+    background-color: #f8f8f8;
+    color: #333;
+    line-height: 1.6;
+    padding: 20px;
+}
+
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #ccc;
+    padding: 15px;
+    margin-bottom: 20px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header-logo {
+    flex-shrink: 0;
+}
+
+.header-logo img {
+    display: block;
+    max-width: 100px;
+    height: auto;
+}
+
+.header-info {
+    flex-grow: 1;
+    text-align: center;
+    margin: 0 20px;
+}
+
+.header-info h1 {
+    font-size: 2.2em;
+    color: #0056b3;
+    margin-bottom: 5px;
+}
+
+.header-info h3 {
+    font-size: 1.2em;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+.header-info p {
+    font-size: 0.95em;
+    margin-bottom: 3px;
+}
+
+/* Main Details Container */
+.details-container {
+    background-color: #fff;
+    padding: 30px;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.unique-id-display {
+    text-align: right;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: #666;
+}
+
+.unique-id-display span {
+    color: #0056b3;
+}
+
+.page-title-section h2 {
+    text-align: center;
+    color: #0056b3;
+    margin-bottom: 15px;
+    font-size: 1.8em;
+}
+
+.note-text {
+    background-color: #ffeeba;
+    border: 1px solid #ffc107;
+    padding: 15px;
+    margin-bottom: 25px;
+    color: #856404;
+    line-height: 1.5;
+    font-size: 0.95em;
+}
+
+.note-text strong {
+    color: #a04000;
+}
+
+.important-note {
+    background-color: #f8d7da;
+    border: 1px solid #dc3545;
+    color: #721c24;
+    margin-top: 30px;
+}
+
+/* Details Sections */
+.details-section {
+    border: 1px solid #ddd;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 5px;
+}
+
+.section-heading {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #0056b3;
+    padding: 0 10px;
+    margin-bottom: 15px; /* Added spacing below heading */
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px 20px;
+}
+
+.detail-item {
+    display: flex;
+    flex-wrap: wrap; /* Allows label and value to wrap if content is too long */
+    align-items: baseline; /* Align items along their baselines */
+}
+
+.detail-label {
+    font-weight: bold;
+    margin-right: 8px; /* Space between label and value */
+    color: #555;
+    flex-shrink: 0; /* Prevents label from shrinking */
+}
+
+.detail-value {
+    flex-grow: 1; /* Allows value to take up remaining space */
+    border-bottom: 1px solid #ccc; /* Underline for the value */
+    padding-bottom: 2px; /* Small padding for the underline */
+    min-width: 100px; /* Ensure a minimum width for the value line */
+    word-break: break-word; /* Prevents long words from overflowing */
+}
+
+/* Grid spanning for full-width items */
+.grid-full {
+    grid-column: 1 / -1;
+}
+
+/* Special styling for signature/comment lines */
+.signature-line {
+    border-bottom: 1px solid #333;
+    min-width: 200px; /* More space for a signature line */
+}
+
+/* Comments Section */
+.child-behavior-comments {
+    margin-top: 30px;
+}
+
+.comment-item {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+    align-items: baseline;
+}
+
+.comment-line {
+    border-bottom: 1px solid #333;
+    flex-grow: 1;
+    min-width: 200px;
+}
+
+/* Footer Styling */
+.main-footer {
+    border-top: 1px solid #ccc;
+    padding-top: 20px;
+    text-align: center;
+    color: #555;
+    margin-top: 30px;
+}
+
+.footer-signature {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    margin-bottom: 10px;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    gap: 20px; /* Space between signature and date */
+}
+
+.footer-signature p {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    font-size: 1em;
+}
+
+.signature-placeholder,
+.date-placeholder {
+    display: inline-block;
+    min-width: 150px;
+    border-bottom: 1px solid #333;
+    height: 1.2em;
+    vertical-align: middle;
+}
+
+/* Print Specific Styles */
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #fff;
+        font-size: 11pt;
+    }
+
+    .main-header,
+    .details-container,
+    .main-footer {
+        box-shadow: none;
+        border: none;
+    }
+
+    .details-container {
+        padding: 0;
+    }
+
+    .details-section {
+        border: 1px solid #aaa;
+        page-break-inside: avoid;
+        margin-bottom: 15px;
+        padding: 15px;
+    }
+
+    .details-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px 15px;
+    }
+
+    .detail-item {
+        display: flex; /* Keep flex for label-value alignment */
+        flex-direction: row; /* Ensure label and value are inline */
+        align-items: baseline;
+    }
+
+    .detail-label {
+        font-weight: bold;
+        margin-right: 8px;
+        color: #333; /* Darker for print clarity */
+    }
+
+    .detail-value {
+        border-bottom: 1px dashed #999; /* Dashed line for print fields */
+        padding-bottom: 2px;
+        min-width: unset; /* Let content dictate width more */
+        flex-grow: 1;
+    }
+
+    .signature-line,
+    .comment-line {
+        border-bottom: 1px dashed #333;
+    }
+
+    .note-text {
+        background-color: transparent;
+        border: 1px dashed #999;
+        color: #333;
+        padding: 10px;
+    }
+
+    .unique-id-display,
+    .main-footer {
+        padding: 0 10px;
+    }
+
+    .footer-signature {
+        justify-content: center; /* Center align in print */
+        gap: 50px; /* More space for print */
+    }
+}

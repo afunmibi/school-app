@@ -8,7 +8,7 @@ if (!isset($_SESSION['student_id'])) {
     exit;
 }
 
-$student_unique_id = $_SESSION['student_id'];
+$student_unique_id = $_SESSION['student_unique_id'] ?? null;
 
 // Fetch student's class and internal ID
 $class_stmt = $conn->prepare("SELECT class_assigned, id FROM students WHERE student_id = ? OR unique_id = ?");
@@ -19,11 +19,12 @@ $class_stmt->fetch();
 $class_stmt->close();
 
 // Fetch assignments for this student's class
-$stmt = $conn->prepare("SELECT a.id, a.subject, a.title, a.description, a.due_date, t.full_name AS teacher_name 
-                        FROM assignments a 
-                        JOIN teachers t ON a.teacher_id = t.id 
-                        WHERE a.class = ? 
-                        ORDER BY a.due_date ASC");
+error_log("Student Class: " . $student_class);
+$stmt = $conn->prepare("SELECT a.id, a.subject, a.title, a.description, a.due_date, t.full_name AS teacher_name
+                                FROM assignments a
+                                JOIN teachers t ON a.teacher_id = t.id
+                                WHERE a.class_assigned = ?
+                                ORDER BY a.due_date ASC");
 $stmt->bind_param("s", $student_class);
 $stmt->execute();
 $result = $stmt->get_result();

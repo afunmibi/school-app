@@ -1,129 +1,146 @@
 <?php
-session_start();
-include "../../config.php";
+// Enable strict error reporting for development to catch potential issues early.
+declare(strict_types=1);
 
-// Check if student is logged in
-if (!isset($_SESSION['student_id'])) {
+// Start the session to access session variables.
+session_start();
+
+// Include the database configuration file.
+require_once "../../config.php";
+
+// --- Authentication Check ---
+if (!isset($_SESSION['student_unique_id']) || empty($_SESSION['student_unique_id'])) {
+    // If the student's unique ID is not set in the session, redirect to login.
     header("Location: student_login.php");
     exit;
 }
 
-$unique_id = $_SESSION['student_id'];
+// Get the student's unique ID from the session.
+$studentUniqueId = $_SESSION['student_unique_id'];
 
-// Fetch student record
-$stmt = $conn->prepare("SELECT * FROM students WHERE unique_id = ?");
-$stmt->bind_param("s", $unique_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$student = $result->fetch_assoc();
-$stmt->close();
+// Initialize student data variable.
+$studentData = null;
+$teacherData = null;
 
-if (!$student) {
-    echo "<div class='alert alert-danger mt-5 text-center'>Student record not found for ID: <strong>" . htmlspecialchars($unique_id) . "</strong>. Please contact admin.</div>";
-    exit;
+try {
+    // Prepare a query to fetch student data based on unique ID.
+    $stmt = $conn->prepare("SELECT full_name, class_assigned, passport_photo FROM students WHERE unique_id = ?");
+
+    if ($stmt) {
+        $stmt->bind_param("s", $studentUniqueId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $studentData = $result->fetch_assoc();
+        $stmt->close();
+    } else {
+        error_log("Dashboard Error: Prepare query failed: " . $conn->error);
+        echo "<div class='alert alert-danger mt-3'>Error fetching student data. Please contact support.</div>";
+    }
+
+    // --- Fetch Teacher Data ---
+    if ($studentData && !empty($studentData['class_assigned'])) {
+        $teacherStmt = $conn->prepare("SELECT full_name, profile_photo FROM users WHERE role = 'teacher' AND class_assigned = ? LIMIT 1");
+        if ($teacherStmt) {
+            $teacherStmt->bind_param("s", $studentData['class_assigned']);
+            $teacherStmt->execute();
+            $teacherResult = $teacherStmt->get_result();
+            $teacherData = $teacherResult->fetch_assoc();
+            $teacherStmt->close();
+        } else {
+            error_log("Dashboard Error: Prepare query for teacher failed: " . $conn->error);
+            echo "<div class='alert alert-danger mt-3'>Error fetching teacher data. Please contact support.</div>";
+        }
+    }
+
+} catch (Exception $e) {
+    error_log("Dashboard Error: Database query error: " . $e->getMessage());
+    echo "<div class='alert alert-danger mt-3'>Database error occurred. Please try again later.</div>";
 }
 
-// Fetch class teacher info using class_assigned
-$teacher_stmt = $conn->prepare("SELECT full_name, profile_photo FROM users WHERE role='teacher' AND class_assigned = ? LIMIT 1");
-$teacher_stmt->bind_param("s", $student['class_assigned']);
-$teacher_stmt->execute();
-$teacher_result = $teacher_stmt->get_result();
-$teacher = $teacher_result->fetch_assoc();
-$teacher_stmt->close();
-$conn->close();
+// --- Handle missing student data ---
+if (!$studentData) {
+    error_log("Dashboard Error: No student data found for Unique ID: " . htmlspecialchars($studentUniqueId));
+    echo "<div class='alert alert-warning mt-3'>Student data not found. Please contact admin.</div>";
+    // You might want to redirect to a logout page or display a specific error here.
+}
 
-// Teacher photo logic
-$teacher_photo = !empty($teacher['profile_photo'])
-    ? "../../uploads/" . htmlspecialchars($teacher['profile_photo'])
-    : "https://ui-avatars.com/api/?name=" . urlencode($teacher['full_name'] ?? 'Teacher') . "&background=2563eb&color=fff";
+// --- Prepare data for display ---
+$fullName = htmlspecialchars($studentData['full_name'] ?? 'Guest Student');
+$classAssigned = htmlspecialchars($studentData['class_assigned'] ?? 'N/A');
+$passportPhoto = htmlspecialchars($studentData['passport_photo'] ?? '');
+$studentAvatar = !empty($passportPhoto)
+    ? "../../uploads/passports/" . $passportPhoto
+    : "https://ui-avatars.com/api/?name=" . urlencode($fullName) . "&background=2563eb&color=fff";
 
-// Student photo logic
-$student_avatar = !empty($student['passport_photo'])
-    ? "../../uploads/passports/" . htmlspecialchars($student['passport_photo'])
-    : "https://ui-avatars.com/api/?name=" . urlencode($student['full_name'] ?? 'Student') . "&background=2563eb&color=fff";
+$teacherName = htmlspecialchars($teacherData['full_name'] ?? 'No Teacher Assigned');
+$teacherProfilePhoto = htmlspecialchars($teacherData['profile_photo'] ?? '');
+$teacherAvatar = !empty($teacherProfilePhoto)
+    ? "../../uploads/" . $teacherProfilePhoto
+    : "https://ui-avatars.com/api/?name=" . urlencode($teacherName) . "&background=2563eb&color=fff";
+
 ?>
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Student Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body { background: #f4f6f9; }
-        .student-card {
-            max-width: 500px;
-            margin: 2rem auto;
-            background: #fff;
-            border-radius: 1rem;
-            box-shadow: 0 0 16px rgba(44,62,80,0.08);
-            padding: 2rem 1.5rem;
-        }
-        .student-avatar {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 1rem;
-            border: 2px solid #2563eb;
-        }
-        .teacher-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 0.5rem;
-            border: 2px solid #1e293b;
-        }
-        @media (max-width: 575.98px) {
-            .student-card { padding: 1rem 0.5rem; }
-            h4, h5 { font-size: 1.1rem; }
-            .student-avatar { width: 50px; height: 50px; }
-            .teacher-avatar { width: 40px; height: 40px; }
-            .btn { font-size: 0.95rem; padding: 0.75rem 0.5rem; }
-        }
-        .btn-warning, .btn-success, .btn-dark, .btn-info, .btn-primary, .btn-danger {
-            font-size: 0.9rem;
-            padding: 0.5rem 1rem;
-        }
+        body { background: #f8f9fa; font-family: 'Inter', sans-serif; }
+        .dashboard-container { max-width: 900px; margin: 2rem auto; background: #fff; border-radius: 1rem; box-shadow: 0 8px 20px rgba(44,62,80,0.08); padding: 2rem; }
+        .student-profile { display: flex; align-items: center; margin-bottom: 20px; }
+        .student-avatar { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #2563eb; margin-right: 20px; }
+        .teacher-info { display: flex; align-items: center; margin-bottom: 20px; }
+        .teacher-avatar { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #007bff; margin-right: 20px; }
+        .dashboard-links a { margin-right: 10px; margin-bottom: 10px; display: inline-block; }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="student-card text-center">
-        <img src="<?= $student_avatar ?>" alt="Student Photo" class="student-avatar">
-        <h4 class="text-primary mb-1">Welcome, <?= htmlspecialchars($student['full_name']) ?></h4>
-        <p class="mb-2 text-muted"><?= htmlspecialchars($student['unique_id']) ?></p>
-        <hr>
-        <div class="row mb-3">
-            <div class="col-6 text-start"><strong>Class:</strong></div>
-            <div class="col-6 text-end"><?= htmlspecialchars($student['class_assigned'] ?? '-') ?></div>
-            <div class="col-6 text-start"><strong>Status:</strong></div>
-            <div class="col-6 text-end"><?= htmlspecialchars($student['status'] ?? '-') ?></div>
+    <div class="container">
+        <div class="dashboard-container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="text-primary">Student Dashboard</h2>
+                <a href="../../logout.php" class="btn btn-danger">Logout</a>
+            </div>
+
+            <div class="student-profile">
+                <img src="<?= $studentAvatar ?>" alt="Student Photo" class="student-avatar">
+                <div>
+                    <h3><?= $fullName ?></h3>
+                    <p class="text-muted">Class: <?= $classAssigned ?></p>
+                    <p class="text-muted">Unique ID: <?= htmlspecialchars($studentUniqueId) ?></p>
+                </div>
+            </div>
+
+            <hr class="mb-4">
+
+            <div class="teacher-info">
+                <img src="<?= $teacherAvatar ?>" alt="Teacher Photo" class="teacher-avatar">
+                <div>
+                    <h5>Your Class Teacher</h5>
+                    <h4><?= $teacherName ?></h4>
+                </div>
+            </div>
+
+            <hr class="mb-4">
+
+            <div class="dashboard-links">
+                <h4>Quick Access</h4>
+                <a href="view_results.php" class="btn btn-primary"><i class="bi bi-file-earmark-text me-2"></i> View Results</a>
+                <a href="view_assignments.php" class="btn btn-info"><i class="bi bi-book me-2"></i> View Assignments</a>
+                <!-- <a href="submit_assignment.php" class="btn btn-warning"><i class="bi bi-upload me-2"></i> Submit Assignment</a> -->
+                <a href="registration/full_registration.php" class="btn btn-success"><i class="bi bi-person-gear me-2"></i> Update Profile</a>
+                <a href="change_password.php" class="btn btn-warning"><i class="bi bi-key me-2"></i> Change Password<small> || You must change your password upon first login</small></a>
+                <a href="generate_id_card.php" class="btn btn-secondary"><i class="bi bi-person-badge me-2"></i> Generate ID Card</a>
+            </div>
+
+            <hr class="mt-4">
+
+            <p class="text-muted text-center">Logged in as: <?= $fullName ?></p>
+            <p class="text-muted text-center"><a href="student_login.php" class="btn btn-secondary btn-sm">Back to Student Login</a> </p>
         </div>
-        <hr>
-        <div class="mb-3">
-            <h5 class="mb-2">Class Teacher</h5>
-            <?php if ($teacher): ?>
-                <img src="<?= $teacher_photo ?>" alt="Class Teacher Photo" class="teacher-avatar">
-                <div><?= htmlspecialchars($teacher['full_name']) ?></div>
-            <?php else: ?>
-                <div class="text-danger">No teacher assigned to your class yet.</div>
-            <?php endif; ?>
-        </div>
-        <hr>
-        <h5 class="mb-3">Quick Access</h5>
-        <div class="d-grid gap-2 mb-2">
-            <a href="registration/full_registration.php" class="btn btn-warning">Complete Full Registration</a>
-            <a href="view_results.php" class="btn btn-success">View Results</a>
-            <a href="generate_result_pdf.php" class="btn btn-dark">Download Result (PDF)</a>
-            <a href="view_assignments.php" class="btn btn-info">View Assignments</a>
-            <a href="submit_assignment.php" class="btn btn-primary">Submit Assignment</a>
-        </div>
-        <hr>
-        <a href="../../logout.php" class="btn btn-danger w-100">Logout</a>
     </div>
-</div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

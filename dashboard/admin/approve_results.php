@@ -8,10 +8,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
-// Approve logic
+// Approve logic: update status and unique_id = student_id
 if (isset($_GET['approve_id'])) {
     $id = intval($_GET['approve_id']);
-    $stmt = $conn->prepare("UPDATE final_exam_results SET status = 'approved' WHERE id = ?");
+   $stmt = $conn->prepare("
+    UPDATE final_exam_results
+    SET status = 'approved'
+    WHERE id = ?
+    ");
     $stmt->bind_param("i", $id);
     if ($stmt->execute()) {
         header("Location: approve_results.php?approved=1");

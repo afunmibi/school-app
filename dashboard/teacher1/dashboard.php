@@ -46,7 +46,7 @@ if ($class_assigned) {
 
 // 👉 Get assignments
 $assignments = [];
-$stmt = $conn->prepare("SELECT id, title, subject, due_date, date_posted FROM assignments WHERE teacher_id = ? AND class = ? ORDER BY date_posted DESC");
+$stmt = $conn->prepare("SELECT id, title, subject, due_date, date_posted FROM assignments WHERE teacher_id = ? AND class_assigned = ? ORDER BY date_posted DESC");
 $stmt->bind_param("is", $teacher_id, $class_assigned);
 $stmt->execute();
 $assignments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -115,6 +115,7 @@ $_POST['attendance_status'] = [
                 <li><a class="nav-link text-white" href="post_assignment.php">Post Assignment</a></li>
                 <li><a class="nav-link text-white" href="view_assignment.php">View Assignments</a></li>
                 <li><a class="nav-link text-white" href="download_results.php">Download Results</a></li>
+                <li><a class="nav-link text-white" href="view_submi.php">View Submitted Results</a></li>
                 <li class="mt-3"><a class="btn btn-danger w-100" href="../../logout.php">Logout</a></li>
             </ul>
         </div>

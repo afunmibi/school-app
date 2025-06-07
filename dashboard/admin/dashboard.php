@@ -25,7 +25,7 @@ $classes = $conn->query("SELECT DISTINCT class_assigned FROM students WHERE clas
 // Fetch all assignments for admin view
 $assignments = [];
 $stmt = $conn->prepare("
-    SELECT a.id, a.title, a.subject, a.details, a.due_date, a.date_posted, u.full_name AS teacher_name, a.class
+    SELECT a.id, a.title, a.subject, a.details, a.due_date, a.date_posted, u.full_name AS teacher_name, a.class_assigned
     FROM assignments a
     LEFT JOIN users u ON a.teacher_id = u.id
     ORDER BY a.date_posted DESC

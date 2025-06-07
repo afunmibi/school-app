@@ -38,10 +38,10 @@ $message = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $subject = trim($_POST['subject'] ?? '');
     $assessments = intval($_POST['assessments'] ?? 0);
-    $exam_scores = intval($_POST['exam_scores'] ?? 0);
+    $exam_scores = intval($_POST['exam_score'] ?? 0);
     $status = trim($_POST['status'] ?? 'pending');
 
-    $stmt = $conn->prepare("UPDATE final_exam_results SET subject = ?, assessments = ?, exam_scores = ?, status = ? WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE final_exam_results SET subject = ?, assessments = ?, exam_score = ?, status = ? WHERE id = ?");
     $stmt->bind_param("sissi", $subject, $assessments, $exam_scores, $status, $id);
 
     if ($stmt->execute()) {
