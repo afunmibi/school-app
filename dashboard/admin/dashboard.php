@@ -113,6 +113,7 @@ if ($fetch_pre_register_students) {
     </style>
 </head>
 <body>
+    <?php include'../../header.php'; ?>
 <button class="sidebar-toggler d-lg-none" id="sidebarToggle">&#9776;</button>
 <div class="overlay" id="sidebarOverlay"></div>
 <div class="sidebar" id="sidebarNav">
@@ -124,13 +125,16 @@ if ($fetch_pre_register_students) {
     <ul>
         <li><a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
         <li><a href="add_teacher.php"><i class="fas fa-chalkboard-teacher"></i> Manage Teachers</a></li>
-        <li><a href="add_student.php"><i class="fas fa-user-graduate"></i> Manage Students</a></li>
+        <li><a href="add_student.php"><i class="fas fa-user-graduate"></i> Manage Student Details</a></li>
+        <li><a href="registerNewStudent\pre_register_new_student.php"><i class="fas fa-user-graduate"></i> Register New Student </a></li>
         <li><a href="approve_results.php"><i class="fas fa-check"></i> Approve Results</a></li>
         <li><a href="manage_results.php"><i class="fas fa-check"></i> Results Management</a></li>
         <li><a href="profile.php"><i class="fas fa-user"></i> View/Edit Profile</a></li>
+       
+
         <li><a href="../../logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
     </ul>
-    manage_results.php
+    
 </div>
 <div class="content">
     <div class="top-bar">
@@ -196,7 +200,7 @@ if ($fetch_pre_register_students) {
                                         $teacher_photo_path = "https://ui-avatars.com/api/?name=" . urlencode($teacher['user_table_full_name']) . "&background=303f9f&color=fff&size=40";
                                     }
                                     ?>
-                                    <img src="<?= $teacher_photo_path ?>" alt="<?= htmlspecialchars($teacher['user_table_full_name']) ?>" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                    <img src="../uploads/<?= $teacher_photo_path ?>" alt="<?= htmlspecialchars($teacher['user_table_full_name']) ?>" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
                                 </td>
                                 <td><?= htmlspecialchars($teacher['user_table_full_name']) ?></td>
                                 <td><?= htmlspecialchars($teacher['user_table_email']) ?></td>
@@ -216,8 +220,8 @@ if ($fetch_pre_register_students) {
                                 <td><?= htmlspecialchars($teacher['profile_qualification'] ?: 'N/A') ?></td>
                                 <td><?= htmlspecialchars($teacher['profile_phone_number'] ?: 'N/A') ?></td>
                                 <td>
-                                    <a href="edit_teacher.php?id=<?= $teacher['user_table_id'] ?>" class="btn btn-warning btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
-                                    <a href="delete_teacher.php?id=<?= $teacher['user_table_id'] ?>" class="btn btn-danger btn-sm" title="Delete" onclick="return confirm('Are you sure you want to delete this teacher? This will remove their record from users, teachers, teacher_classes, and teacher_profile tables.');"><i class="fas fa-trash-alt"></i></a>
+                                    <a href="edit_teacher.php?id=<?= $teacher['user_table_id'] ?>" class="btn btn-warning btn-sm" title="Edit"><i class="fas fa-edit">Edit</i></a>
+                                    <a href="delete_teacher.php?id=<?= $teacher['user_table_id'] ?>" class="btn btn-danger btn-sm" title="Delete" onclick="return confirm('Are you sure you want to delete this teacher? This will remove their record from users, teachers, teacher_classes, and teacher_profile tables.');"><i class="fas fa-trash-alt">Delete</i></a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -280,6 +284,7 @@ if ($fetch_pre_register_students) {
         </tbody>
     </table>
 </div></div>
+  <?php include'../../footer.php'; ?>
 <script>
     // Sidebar toggle for mobile
     const sidebar = document.getElementById('sidebarNav');

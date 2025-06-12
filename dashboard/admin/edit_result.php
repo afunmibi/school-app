@@ -2,16 +2,14 @@
 session_start();
 include "../../config.php";
 
+
+
 // Only allow admin or teacher
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'teacher'])) {
     header("Location: ../../index.php");
     exit;
 }
 
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    echo "Invalid request.";
-    exit;
-}
 
 $id = intval($_GET['id']);
 
@@ -66,11 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="POST">
         <div class="mb-2">
             <label>Student Name</label>
-            <input type="text" class="form-control" value="<?= htmlspecialchars($row['full_name']) ?>" disabled>
+            <input type="text" class="form-control" value="<?= htmlspecialchars($row['full_name']) ?>" >
         </div>
         <div class="mb-2">
             <label>Student Class</label>
-            <input type="text" class="form-control" value="<?= htmlspecialchars($row['class_assigned']) ?>" disabled>
+            <input type="text" class="form-control" value="<?= htmlspecialchars($row['class_assigned']) ?>" >
         </div>
         <div class="mb-2">
             <label>Subject</label>

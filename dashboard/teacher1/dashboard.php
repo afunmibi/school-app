@@ -115,7 +115,7 @@ $_POST['attendance_status'] = [
                 <li><a class="nav-link text-white" href="post_assignment.php">Post Assignment</a></li>
                 <li><a class="nav-link text-white" href="view_assignment.php">View Assignments</a></li>
                 <li><a class="nav-link text-white" href="download_results.php">Download Results</a></li>
-                <li><a class="nav-link text-white" href="view_submi.php">View Submitted Results</a></li>
+                <li><a class="nav-link text-white" href="view_submitted_results.php">View Submitted Results</a></li>
                 <li class="mt-3"><a class="btn btn-danger w-100" href="../../logout.php">Logout</a></li>
             </ul>
         </div>

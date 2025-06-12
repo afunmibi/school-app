@@ -45,7 +45,7 @@ if ($action === 'export') {
 }
 
 // Fetch Results
-$query = "SELECT id, full_name, subject, assessments, exam_score, final_score, status, term, session, class
+$query = "SELECT id, full_name, subject, assessments, exam_score, final_score, status, term, session, class_assigned
           FROM final_exam_results
           WHERE " . ($role === 'teacher' ? "teacher_id = ?" : "student_id = ?");
 
@@ -111,7 +111,7 @@ $stmt->close();
                 <?php foreach ($results as $row): ?>
                     <tr>
                         <td><?= htmlspecialchars($row['full_name']) ?></td>
-                        <td><?= htmlspecialchars($row['class']) ?></td>
+                        <td><?= htmlspecialchars($row['class_assigned']) ?></td>
                         <td><?= htmlspecialchars($row['subject']) ?></td>
                         <td><?= $row['assessments'] ?></td>
                         <td><?= $row['exam_score'] ?></td>
@@ -121,8 +121,8 @@ $stmt->close();
                         <td><?= htmlspecialchars($row['session']) ?></td>
                         <?php if ($role === 'teacher'): ?>
                             <td>
-                                <a href="edit_result.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-warning">Edit</a>
-                                <a href="delete_result.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Delete this result?')">Delete</a>
+                                <a href="../admin/edit_result.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-warning">Edit</a>
+                                <a href="../admin/delete_result.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Delete this result?')">Delete</a>
                             </td>
                         <?php endif; ?>
                     </tr>

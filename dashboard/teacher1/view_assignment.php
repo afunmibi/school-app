@@ -26,7 +26,7 @@ if (!empty($class_assigned)) {
     $stmt = $conn->prepare("
         SELECT id, title, subject, details, due_date, date_posted
         FROM assignments
-        WHERE teacher_id = ? AND class = ?
+        WHERE teacher_id = ? AND class_assigned = ?
         ORDER BY date_posted DESC
     ");
     $stmt->bind_param("is", $teacher_id, $class_assigned);

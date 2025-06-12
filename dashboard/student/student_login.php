@@ -169,7 +169,7 @@ if (isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
         <div class="text-center mt-3">
         <p>OLU9243, w4BnQxkH</p>
         <p>NIK4620, Y5SqGvMh</p>
-        <p>RUK1770, Y5SqGvMh</p>
+        
         <p class="text-muted">Need help? Contact your class teacher or the school administration.</p>
         <p class="text-muted">© <?= date("Y") ?> Your School Name. All rights reserved.</p>
     </div>

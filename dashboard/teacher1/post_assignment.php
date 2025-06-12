@@ -12,14 +12,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $teacher_id = $_SESSION['user_id'];
-    $class = $_POST['class'];
+    $class_assigned = $_POST['class_assigned'];
     $subject = $_POST['subject'];
     $title = $_POST['title'];
     $details = $_POST['details'];
     $due_date = $_POST['due_date'];
 
     // ✅ Prepare the SQL query with proper placeholders
-    $stmt = $conn->prepare("INSERT INTO assignments (title, description, teacher_id, details, class, subject, due_date) 
+    $stmt = $conn->prepare("INSERT INTO assignments (title, description, teacher_id, details, class_assigned, subject, due_date) 
                             VALUES (?, ?, ?, ?, ?, ?, ?)");
 
     // ✅ Bind parameters correctly
@@ -70,7 +70,7 @@ $conn->close();
             <form method="POST" action="">
                 <div class="mb-3">
                     <label class="form-label">Class</label>
-                    <select name="class" class="form-control" required>
+                    <select name="class_assigned" class="form-control" required>
                         <option value="">Select Class</option>
                         <option value="Basic 1">Basic 1</option>
                         <option value="Basic 2">Basic 2</option>

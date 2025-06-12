@@ -27,7 +27,7 @@ $start_date = trim($_GET['start_date'] ?? '');
 $end_date = trim($_GET['end_date'] ?? '');
 
 // ✅ Base query
-$query = "SELECT full_name, class, subject, term, session, assessments, exam_score, final_score, result_date FROM final_exam_results";
+$query = "SELECT full_name, class_assigned, subject, term, session, assessments, exam_score, final_score, result_date FROM final_exam_results";
 $conditions = ["teacher_id = ?"];
 $params = [$teacher_id];
 $types = "i";
@@ -77,7 +77,7 @@ if ($start_date && $end_date) {
 if (!empty($conditions)) {
     $query .= " WHERE " . implode(" AND ", $conditions);
 }
-$query .= " ORDER BY full_name ASC, class ASC, subject ASC";
+$query .= " ORDER BY full_name ASC, class_assigned ASC, subject ASC";
 
 // ✅ Prepare and bind
 $stmt = $conn->prepare($query);

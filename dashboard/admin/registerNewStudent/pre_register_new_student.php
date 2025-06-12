@@ -119,6 +119,7 @@ $conn->close();
 </div>
 <button class="btn btn-primary w-100">Submit Pre-Registration</button>
 <a href="../../student/student_login.php" target="_blank"> <p class="mx-auto pt-3">Click here to go to student Login to complete the Registration</p></a>
+<a href="../dashboard.php" > <p class="mx-auto pt-3">Dashboard</p></a>
 
  </form>
 </div>

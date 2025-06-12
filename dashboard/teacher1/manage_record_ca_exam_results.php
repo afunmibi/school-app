@@ -5,11 +5,10 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 // Allow only teachers or admins
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'teacher' || $_SESSION['role'] !== 'admin')) {
-header("Location: ../../index.php");
-exit;
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
+    header("Location: ../../index.php");
+    exit;
 }
-
 $teacher_id = $_SESSION['user_id'];
 $student_id = $_SESSION['student_unique_id'] ?? null;
 
@@ -93,8 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Insert or update final_exam_results record using ON DUPLICATE KEY UPDATE
             // This assumes you have a UNIQUE constraint on (student_numeric_id, subject, term, session)
             $stmt = $conn->prepare("INSERT INTO final_exam_results
-                (student_numeric_id, unique_id, full_name, class, subject, term, session, assessments, exam_score, final_score, teacher_id, status, result_date, class_assigned)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                (student_numeric_id, unique_id, full_name, subject, term, session, assessments, exam_score, final_score, teacher_id, status, result_date, class_assigned)
+                VALUES (?, ?, ?,  ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
                 ON DUPLICATE KEY UPDATE
                     assessments = VALUES(assessments),
                     exam_score = VALUES(exam_score),
@@ -102,7 +101,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     teacher_id = VALUES(teacher_id),
                     result_date = VALUES(result_date),
                     full_name = VALUES(full_name),
-                    class = VALUES(class),
                     term = VALUES(term),
                     class_assigned = VALUES(class_assigned),
                     unique_id = VALUES(unique_id),
@@ -113,11 +111,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 die("Prepare failed: " . htmlspecialchars($conn->error));
             }
 
-            $stmt->bind_param("issssssiiiiss",
+            $stmt->bind_param("issssssiiiss",
                 $student_numeric_id,
                 $unique_id,
                 $student_name,
-                $student_class, // This is 'class' column in final_exam_results
+                // $student_class, // This is 'class' column in final_exam_results
                 $subject,
                 $term,
                 $session_val,
@@ -193,7 +191,7 @@ error_log("Unique ID before execute: " . $unique_id);
 
                     <div class="col-md-6">
                         <label for="term" class="form-label">Term</label>
-                        <input type="text" name="term" id="term" class="form-control" placeholder="e.g. 1st Term" required value="<?= htmlspecialchars($_POST['term'] ?? '') ?>">
+                        <input type="text" name="term" id="term" class="form-control" placeholder="e.g. 1st Term" required value="<?=  htmlspecialchars($_POST['term'] ?? '') ?>">
                     </div>
 
                     <div class="col-md-6">

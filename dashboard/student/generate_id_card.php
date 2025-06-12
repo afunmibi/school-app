@@ -181,7 +181,7 @@ ob_start();
         </div>
         <div class="id-card-body">
             <div class="photo-section">
-                <img src="<?= $passportSrc ?>" alt="Student Photo">
+                <img src="uploads/<?= $passportSrc ?>" alt="Student Photo">
                 <?php if ($passportSrc === 'https://via.placeholder.com/100x120?text=Photo'): ?>
                     <p class="no-photo">No photo available</p>
                 <?php endif; ?>

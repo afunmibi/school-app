@@ -20,7 +20,7 @@ if (!$assignment_id) {
     $message = "<div class='alert alert-danger'>❌ No assignment ID specified.</div>";
 } else {
     // Fetch assignment details and verify it belongs to this teacher
-    $stmt_assignment = $conn->prepare("SELECT id, title, description, subject, class, due_date, date_posted FROM assignments WHERE id = ? AND teacher_id = ?");
+    $stmt_assignment = $conn->prepare("SELECT id, title, description, subject, class_assigned, due_date, date_posted FROM assignments WHERE id = ? AND teacher_id = ?");
     if ($stmt_assignment) {
         $stmt_assignment->bind_param("ii", $assignment_id, $teacher_user_id);
         $stmt_assignment->execute();
@@ -97,7 +97,7 @@ $conn->close();
     <div class="bg-white p-4 rounded shadow">
         <?php if ($assignment_details): ?>
             <h4 class="mb-3">Submissions for: <span class="text-primary"><?= htmlspecialchars($assignment_details['title']) ?></span></h4>
-            <p class="text-muted">Subject: <?= htmlspecialchars($assignment_details['subject']) ?> | Class: <?= htmlspecialchars($assignment_details['class']) ?> | Due: <?= htmlspecialchars($assignment_details['due_date']) ?></p>
+            <p class="text-muted">Subject: <?= htmlspecialchars($assignment_details['subject']) ?> | Class: <?= htmlspecialchars($assignment_details['class_assigned']) ?> | Due: <?= htmlspecialchars($assignment_details['due_date']) ?></p>
             <hr>
         <?php endif; ?>
 
@@ -114,6 +114,7 @@ $conn->close();
                             <th>Submitted At</th>
                             <th>Submission File</th>
                             <th>Submission Text</th>
+
                         </tr>
                     </thead>
                     <tbody>

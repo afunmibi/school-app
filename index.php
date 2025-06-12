@@ -64,12 +64,12 @@ $conn->close();
     <link rel="stylesheet" href="assets/bootstrap-5.3.3-dist/bootstrap-5.3.3-dist/css/bootstrap.min.css">
 </head>
 <body class="bg-light">
-    <?php include "./header.php"; ?>
+   
     <div class="container mt-5">
         <div class="row justify-content-center">
             <div class="col-md-6">
                 <form action="" method="POST" class="p-4 border shadow rounded bg-white">
-                    <h4 class="text-center mb-4 text-primary">User Login</h4>
+                    <h4 class="text-center mb-4 text-primary"> Admin/Teacher Login Form</h4>
 
                     <div class="mb-3">
                         <label for="role">Role</label>
@@ -92,7 +92,7 @@ $conn->close();
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100">Login</button>
-                    <p class="mt-3 mb-3"><a href="dashboard/student/student_login.php">Click here to Login as a Student</a></p>
+                    <p class="mt-3 mb-3"><a href="dashboard/student/student_login.php" target="_blank">Click here to Login as a Student</a></p>
 
 
                 </form>

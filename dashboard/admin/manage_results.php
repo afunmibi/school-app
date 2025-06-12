@@ -14,7 +14,7 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'teac
 $results = $conn->query("
     SELECT r.*, s.full_name, s.class_assigned
     FROM final_exam_results r
-    LEFT JOIN students s ON r.student_id = s.id
+    LEFT JOIN students s ON r.unique_id = s.unique_id
     ORDER BY r.id DESC
 ");
 ?>
@@ -27,14 +27,14 @@ $results = $conn->query("
 <body>
 <div class="container mt-5">
     <h4 class="mb-4 text-primary">Manage Results</h4>
-    <a href="../teacher1/manage_record_ca_exam_results.php" class="btn btn-success mb-3">Add New Result</a>
+    <!-- <a href="../teacher1/manage_record_ca_exam_results.php" class="btn btn-success mb-3">Add New Result</a> -->
     <table class="table table-bordered table-striped">
         <thead>
             <tr>
                 <th>#</th> <!-- Corresponds to final_exam_results.id (primary key, via $sn++) -->
                 <th>Student ID</th> <!-- final_exam_results.student_id -->
                 <th>Student Name</th> <!-- students.full_name (from JOIN) -->
-                <th>Class</th> <!-- final_exam_results.class -->
+                <th>Class Assigned</th> <!-- final_exam_results.class -->
                 <th>Subject</th> <!-- final_exam_results.subject -->
                 <th>Term</th> <!-- final_exam_results.term -->
                 <th>Session</th> <!-- final_exam_results.session -->
@@ -54,9 +54,9 @@ $results = $conn->query("
         ?>
            <tr>
                 <td><?= $sn++ ?></td>
-                <td><?= htmlspecialchars($row['student_id']) ?></td>
+                <td><?= htmlspecialchars($row['unique_id']) ?></td>
                 <td><?= htmlspecialchars($row['full_name'] ?? '-') ?></td> <!-- s.full_name -->
-                <td><?= htmlspecialchars($row['class'] ?? '-') ?></td> <!-- r.class -->
+                <td><?= htmlspecialchars($row['class_assigned'] ?? '-') ?></td> <!-- r.class -->
                 <td><?= htmlspecialchars($row['subject']) ?></td>
                 <td><?= htmlspecialchars($row['term'] ?? '-') ?></td>
                 <td><?= htmlspecialchars($row['session'] ?? '-') ?></td>

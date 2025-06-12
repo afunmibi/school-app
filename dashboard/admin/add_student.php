@@ -12,60 +12,53 @@ session_start();
 // Using 'require_once' ensures the file is included exactly once and halts execution if not found.
 require_once "../../config.php"; // Adjust path as necessary
 
-// Restrict access to administrators only.
-// If the user is not logged in or their role is not 'admin', redirect them to the home page.
+// Check if admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../../index.php");
-    exit; // Terminate script execution after redirection.
+    exit;
 }
 
 $message = ""; // Initialize a variable to store feedback messages for the user.
 $student = null; // Initialize a variable to hold student data, will be populated if editing.
 
 // --- Handle initial page load (GET request) for editing a specific student ---
-// Check if an 'id' is provided in the URL and if it's a valid number.
 if (isset($_GET['id']) && is_numeric($_GET['id']) && $_GET['id'] > 0) {
-    $student_db_id = (int)$_GET['id']; // Cast to integer for security and type consistency.
-
-    // Prepare a statement to fetch student details from the 'students' table.
+    $student_db_id = (int)$_GET['id'];
     $stmt = $conn->prepare("SELECT * FROM students WHERE id = ?");
     if ($stmt === false) {
-        // If the prepare statement fails, output a database error and terminate.
         die("Database prepare error: " . htmlspecialchars($conn->error));
     }
-    $stmt->bind_param("i", $student_db_id); // Bind the integer ID parameter.
-    $stmt->execute(); // Execute the prepared statement.
-    $result = $stmt->get_result(); // Get the result set.
-    $student = $result->fetch_assoc(); // Fetch the single student record as an associative array.
-    $stmt->close(); // Close the statement.
-
-    // If no student is found with the given ID, set an error message.
+    $stmt->bind_param("i", $student_db_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $student = $result->fetch_assoc();
+    $stmt->close();
     if (!$student) {
         $message .= "<div class='alert alert-danger'>Student not found for editing.</div>";
     }
 }
 
-// --- Handle form submission (POST request) for updating student information ---
+// --- Handle form submission (POST request) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Collect and sanitize all form inputs.
-    $id_from_form          = $_POST['id'];
-    $full_name             = trim($_POST['full_name'] ?? '');
-    $email_address         = trim($_POST['email_address'] ?? '');
-    $class_assigned        = trim($_POST['class_assigned'] ?? '');
-    $student_id_form       = trim($_POST['student_id'] ?? '');
-    $phone_no              = trim($_POST['phone_no'] ?? '');
-    $address               = trim($_POST['address'] ?? '');
-    $age                   = trim($_POST['age'] ?? '');
-    $state_of_origin       = trim($_POST['state_of_origin'] ?? '');
-    $lga_origin            = trim($_POST['lga_origin'] ?? '');
-    $state_of_residence    = trim($_POST['state_of_residence'] ?? '');
-    $lga_of_residence      = trim($_POST['lga_of_residence'] ?? '');
-    $parent_name           = trim($_POST['parent_name'] ?? '');
-    $parent_address        = trim($_POST['parent_address'] ?? '');
-    $parent_occupation     = trim($_POST['parent_occupation'] ?? '');
-    $religion              = trim($_POST['religion'] ?? '');
-    $child_comment         = trim($_POST['child_comment'] ?? '');
-    $status                = trim($_POST['status'] ?? 'active');
+    $id_from_form       = $_POST['id'];
+    $full_name          = trim($_POST['full_name'] ?? '');
+    $email_address      = trim($_POST['email_address'] ?? '');
+    $class_assigned     = trim($_POST['class_assigned'] ?? '');
+    $student_id_form    = trim($_POST['student_id'] ?? '');
+    $phone_no           = trim($_POST['phone_no'] ?? '');
+    $address            = trim($_POST['address'] ?? '');
+    $dob                = trim($_POST['dob'] ?? '');
+    $state_of_origin    = trim($_POST['state_of_origin'] ?? '');
+    $lga_origin         = trim($_POST['lga_origin'] ?? '');
+    $state_of_residence = trim($_POST['state_of_residence'] ?? '');
+    $lga_of_residence   = trim($_POST['lga_of_residence'] ?? '');
+    $parent_name        = trim($_POST['parent_name'] ?? '');
+    $parent_address     = trim($_POST['parent_address'] ?? '');
+    $parent_occupation  = trim($_POST['parent_occupation'] ?? '');
+    $religion           = trim($_POST['religion'] ?? '');
+    $child_comment      = trim($_POST['child_comment'] ?? '');
+    $status             = trim($_POST['status'] ?? 'active');
 
     if (empty($student) && !empty($id_from_form)) {
         $stmt_re_fetch = $conn->prepare("SELECT * FROM students WHERE id = ?");
@@ -123,36 +116,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $testimonial = handleFileUpload('testimonial', 'testimonials', $allowed_doc, $max_size, $testimonial, $upload_errors);
 
     if (empty($upload_errors)) {
+        // --- Add a new student ---
+       
         // --- Updating an existing student ---
-        $stmt = $conn->prepare("UPDATE students SET
-            full_name=?, phone_no=?, email_address=?, status=?, address=?, age=?, state_of_origin=?, lga_origin=?, state_of_residence=?, lga_of_residence=?, parent_name=?, parent_address=?, parent_occupation=?, religion=?, child_comment=?, birth_certificate=?, testimonial=?, passport_photo=?, class_assigned=?, student_id=?
-            WHERE id=?");
+        if (isset($_POST['add_student']) && !empty($id_from_form)) {
+            $stmt_update = $conn->prepare("UPDATE students SET
+                full_name=?, phone_no=?, email_address=?, status=?, address=?, dob=?, state_of_origin=?, lga_origin=?, state_of_residence=?, lga_of_residence=?, parent_name=?, parent_address=?, parent_occupation=?, religion=?, child_comment=?, birth_certificate=?, testimonial=?, passport_photo=?, class_assigned=?, student_id=?
+                WHERE id=?");
 
-        if ($stmt) {
-            $stmt->bind_param(
-                "ssssssssssssssssssssi", // s = string, i = integer
-                $full_name, $phone_no, $email_address, $status, $address, $age, $state_of_origin, $lga_origin, $state_of_residence, $lga_of_residence,
-                $parent_name, $parent_address, $parent_occupation, $religion, $child_comment, $birth_certificate, $testimonial, $passport_photo, $class_assigned, $student_id_form, $id_from_form
-            );
+            if ($stmt_update) {
+                $stmt_update->bind_param(
+                    "ssssssssssssssssssssi", // s = string, i = integer
+                    $full_name, $phone_no, $email_address, $status, $address, $dob, $state_of_origin, $lga_origin, $state_of_residence, $lga_of_residence,
+                    $parent_name, $parent_address, $parent_occupation, $religion, $child_comment, $birth_certificate, $testimonial, $passport_photo, $class_assigned, $student_id_form, $id_from_form
+                );
 
-            if ($stmt->execute()) {
-                $message .= "<div class='alert alert-success'>Student updated successfully.</div>";
-                // Re-fetch student data to display the most current values on the form immediately after update.
-                $stmt_re_fetch_after_update = $conn->prepare("SELECT * FROM students WHERE id = ?");
-                $stmt_re_fetch_after_update->bind_param("i", $id_from_form);
-                $stmt_re_fetch_after_update->execute();
-                $student = $stmt_re_fetch_after_update->get_result()->fetch_assoc();
-                $stmt_re_fetch_after_update->close();
+                if ($stmt_update->execute()) {
+                    $message .= "<div class='alert alert-success'>Student updated successfully.</div>";
+                    // Re-fetch student data to display the most current values on the form immediately after update.
+                    $stmt_re_fetch_after_update = $conn->prepare("SELECT * FROM students WHERE id = ?");
+                    $stmt_re_fetch_after_update->bind_param("i", $id_from_form);
+                    $stmt_re_fetch_after_update->execute();
+                    $student = $stmt_re_fetch_after_update->get_result()->fetch_assoc();
+                    $stmt_re_fetch_after_update->close();
+                } else {
+                    $message .= "<div class='alert alert-danger'>Error updating student: " . htmlspecialchars($stmt_update->error) . "</div>";
+                }
+                $stmt_update->close(); // Close the update statement.
             } else {
-                $message .= "<div class='alert alert-danger'>Error updating student: " . htmlspecialchars($stmt->error) . "</div>";
+                $message .= "<div class='alert alert-danger'>Database prepare error for update: " . htmlspecialchars($conn->error) . "</div>";
             }
-            $stmt->close(); // Close the update statement.
-        } else {
-            $message .= "<div class='alert alert-danger'>Database prepare error for update: " . htmlspecialchars($conn->error) . "</div>";
         }
         // Redirect to the same page after POST to prevent form re-submission on refresh
         // and to display the message (passed via GET parameter).
-        header("Location: edit_student.php?id=" . $id_from_form . "&msg=" . urlencode(strip_tags($message)));
+        $redirect_id = !empty($id_from_form) ? $id_from_form : '';
+        header("Location: edit_student.php?id=" . $redirect_id . "&msg=" . urlencode(strip_tags($message)));
         exit; // Terminate script execution after redirection.
     } else {
         // If there were file upload errors, display them to the user.
@@ -195,129 +193,10 @@ if (isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
 <div class="container py-5">
     <div class="row g-4">
 
-        <div class="col-lg-5">
-            <div class="card p-4">
-                <h4 class="text-center text-primary mb-4"><i class="bi bi-person-lines-fill me-2"></i>Update Student</h4>
-                <?php if (!empty($message)) echo $message; ?>
-
-                <form method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="id" value="<?= htmlspecialchars($student['id'] ?? '') ?>">
-
-                    <div class="mb-2">
-                        <label for="full_name" class="form-label">Full Name</label>
-                        <input type="text" name="full_name" id="full_name" value="<?= htmlspecialchars($_POST['full_name'] ?? $student['full_name'] ?? '') ?>" class="form-control rounded-md" required>
-                    </div>
-                    <div class="mb-2">
-                        <label for="phone_no" class="form-label">Phone No</label>
-                        <input type="text" name="phone_no" id="phone_no" value="<?= htmlspecialchars($_POST['phone_no'] ?? $student['phone_no'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="email_address" class="form-label">Email</label>
-                        <input type="email" name="email_address" id="email_address" value="<?= htmlspecialchars($_POST['email_address'] ?? $student['email_address'] ?? '') ?>" class="form-control rounded-md" required>
-                    </div>
-                    <div class="mb-2">
-                        <label for="status" class="form-label">Status</label>
-                        <select name="status" id="status" class="form-select rounded-md">
-                            <option value="active" <?= (($_POST['status'] ?? $student['status'] ?? '') === 'active') ? 'selected' : '' ?>>Active</option>
-                            <option value="inactive" <?= (($_POST['status'] ?? $student['status'] ?? '') === 'inactive') ? 'selected' : '' ?>>Inactive</option>
-                            <option value="pending" <?= (($_POST['status'] ?? $student['status'] ?? '') === 'pending') ? 'selected' : '' ?>>Pending</option>
-                        </select>
-                    </div>
-                    <div class="mb-2">
-                        <label for="address" class="form-label">Address</label>
-                        <input type="text" name="address" id="address" value="<?= htmlspecialchars($_POST['address'] ?? $student['address'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="age" class="form-label">Age</label>
-                        <input type="number" name="age" id="age" value="<?= htmlspecialchars($_POST['age'] ?? $student['age'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="state_of_origin" class="form-label">State of Origin</label>
-                        <input type="text" name="state_of_origin" id="state_of_origin" value="<?= htmlspecialchars($_POST['state_of_origin'] ?? $student['state_of_origin'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="lga_origin" class="form-label">LGA of Origin</label>
-                        <input type="text" name="lga_origin" id="lga_origin" value="<?= htmlspecialchars($_POST['lga_origin'] ?? $student['lga_origin'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="state_of_residence" class="form-label">State of Residence</label>
-                        <input type="text" name="state_of_residence" id="state_of_residence" value="<?= htmlspecialchars($_POST['state_of_residence'] ?? $student['state_of_residence'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="lga_of_residence" class="form-label">LGA of Residence</label>
-                        <input type="text" name="lga_of_residence" id="lga_of_residence" value="<?= htmlspecialchars($_POST['lga_of_residence'] ?? $student['lga_of_residence'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="parent_name" class="form-label">Parent Name</label>
-                        <input type="text" name="parent_name" id="parent_name" value="<?= htmlspecialchars($_POST['parent_name'] ?? $student['parent_name'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="parent_address" class="form-label">Parent Address</label>
-                        <input type="text" name="parent_address" id="parent_address" value="<?= htmlspecialchars($_POST['parent_address'] ?? $student['parent_address'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="parent_occupation" class="form-label">Parent Occupation</label>
-                        <input type="text" name="parent_occupation" id="parent_occupation" value="<?= htmlspecialchars($_POST['parent_occupation'] ?? $student['parent_occupation'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="religion" class="form-label">Religion</label>
-                        <input type="text" name="religion" id="religion" value="<?= htmlspecialchars($_POST['religion'] ?? $student['religion'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="child_comment" class="form-label">Child Comment</label>
-                        <input type="text" name="child_comment" id="child_comment" value="<?= htmlspecialchars($_POST['child_comment'] ?? $student['child_comment'] ?? '') ?>" class="form-control rounded-md">
-                    </div>
-                    <div class="mb-2">
-                        <label for="birth_certificate" class="form-label">Birth Certificate</label>
-                        <input type="file" name="birth_certificate" id="birth_certificate" class="form-control rounded-md" accept=".pdf,.jpg,.jpeg,.png">
-                        <?php if (!empty($student['birth_certificate'])): ?>
-                            <small class="form-text text-muted">Current: <a href="<?= htmlspecialchars($student['birth_certificate'] ?? '') ?>" target="_blank">View File</a></small>
-                        <?php endif; ?>
-                    </div>
-                    <div class="mb-2">
-                        <label for="testimonial" class="form-label">Testimonial</label>
-                        <input type="file" name="testimonial" id="testimonial" class="form-control rounded-md" accept=".pdf,.jpg,.jpeg,.png">
-                        <?php if (!empty($student['testimonial'])): ?>
-                            <small class="form-text text-muted">Current: <a href="<?= htmlspecialchars($student['testimonial'] ?? '') ?>" target="_blank">View File</a></small>
-                        <?php endif; ?>
-                    </div>
-                    <div class="mb-2">
-                        <label for="passport_photo" class="form-label">Passport Photo</label>
-                        <input type="file" name="passport_photo" id="passport_photo" class="form-control rounded-md" accept="image/*">
-                        <?php if (!empty($student['passport_photo'])): ?>
-                            <small class="form-text text-muted">Current: <a href="<?= htmlspecialchars($student['passport_photo'] ?? '') ?>" target="_blank">View Photo</a></small>
-                        <?php endif; ?>
-                    </div>
-                    <div class="mb-2">
-                        <label for="class_assigned" class="form-label">Class Assigned</label>
-                        <select name="class_assigned" id="class_assigned" class="form-select rounded-md" required>
-                            <option value="">--Select--</option>
-                            <?php
-                            $classes = ['Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6'];
-                            foreach ($classes as $cls) {
-                                $selected = (($_POST['class_assigned'] ?? $student['class_assigned'] ?? '') === $cls) ? 'selected' : '';
-                                echo "<option value='$cls' $selected>$cls</option>";
-                            }
-                            ?>
-                        </select>
-                    </div>
-                    <div class="mb-2">
-                        <label for="student_id_input" class="form-label">Student ID (Internal)</label>
-                        <input type="text" name="student_id" id="student_id_input" value="<?= htmlspecialchars($_POST['student_id'] ?? $student['student_id'] ?? '') ?>" class="form-control rounded-md">
-                        <small class="form-text text-muted">This updates the `student_id` column in your `students` table.</small>
-                    </div>
-
-                    <button type="submit" class="btn btn-success w-100 mt-3"><i class="bi bi-save me-2"></i>Update Student</button>
-                    <div class="text-center mt-3">
-                        <a href="dashboard.php" class="btn btn-secondary"><i class="bi bi-arrow-left-circle me-2"></i>Back to Dashboard</a>
-                    </div>
-                </form>
-            </div>
-        </div>
-
         <div class="col-lg-7">
             <div class="card p-4">
                 <h4 class="text-primary mb-3"><i class="bi bi-people-fill me-2"></i>All Students</h4>
+                <?php if (!empty($message)) echo $message; ?>
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped table-hover align-middle">
                         <thead>
@@ -351,10 +230,12 @@ if (isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
                             </tbody>
                         </table>
                     </div>
+                     <a href="dashboard.php">Back to Dashboard</a>
                 </div>
             </div>
         </div>
     </div>
+   
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
