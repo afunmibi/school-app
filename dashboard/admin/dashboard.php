@@ -125,6 +125,8 @@ if ($fetch_pre_register_students) {
     <ul>
         <li><a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
         <li><a href="add_teacher.php"><i class="fas fa-chalkboard-teacher"></i> Manage Teachers</a></li>
+        <li><a href="view_teacher.php"><i class="fas fa-chalkboard-teacher"></i> View Teachers Details</a></li>
+
         <li><a href="add_student.php"><i class="fas fa-user-graduate"></i> Manage Student Details</a></li>
         <li><a href="registerNewStudent\pre_register_new_student.php"><i class="fas fa-user-graduate"></i> Register New Student </a></li>
         <li><a href="approve_results.php"><i class="fas fa-check"></i> Approve Results</a></li>
@@ -195,12 +197,12 @@ if ($fetch_pre_register_students) {
                                 <td><?= $teacher_count++ ?></td>
                                 <td>
                                     <?php
-                                    $teacher_photo_path = "..teacher1//uploads/" . (!empty($teacher['user_table_profile_photo']) ? htmlspecialchars($teacher['user_table_profile_photo']) : 'default.png');
-                                    if (empty($teacher['user_table_profile_photo']) || !file_exists(dirname(__DIR__) . '/uploads/' . $teacher['user_table_profile_photo'])) {
+                                    $teacher_photo_path = "../teacher1/uploads/" . (!empty($teacher['user_table_profile_photo']) ? htmlspecialchars($teacher['user_table_profile_photo']) : 'default.png');
+                                    if (empty($teacher['user_table_profile_photo']) || !file_exists(dirname(__DIR__) . '../teacher1/uploads/' . $teacher['user_table_profile_photo'])) {
                                         $teacher_photo_path = "https://ui-avatars.com/api/?name=" . urlencode($teacher['user_table_full_name']) . "&background=303f9f&color=fff&size=40";
                                     }
                                     ?>
-                                    <img src="../uploads/<?= $teacher_photo_path ?>" alt="<?= htmlspecialchars($teacher['user_table_full_name']) ?>" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                    <img src="../teacher1/uploads/<?= $teacher_photo_path ?>" alt="<?= htmlspecialchars($teacher['user_table_full_name']) ?>" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
                                 </td>
                                 <td><?= htmlspecialchars($teacher['user_table_full_name']) ?></td>
                                 <td><?= htmlspecialchars($teacher['user_table_email']) ?></td>

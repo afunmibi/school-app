@@ -215,50 +215,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="submit" class="btn btn-primary w-100">Add Teacher</button>
                 </form>
             </div>
-            <!-- Table Column -->
-            <div class="col-lg-8">
-                <div class="table-heading">All Teachers</div>
-                <table class="table table-bordered table-striped">
-                    <thead class="table-light">
-                        <tr>
-                            <th>#</th>
-                            <th>Photo</th>
-                            <th>Full Name</th>
-                            <th>Email</th>
-                            <th>Username</th>
-                            <th>Class Assigned</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $sn = 1;
-                        $teachers = $conn->query("SELECT * FROM users WHERE role='teacher' ORDER BY id DESC");
-                        while ($row = $teachers->fetch_assoc()):
-                        ?>
-                        <tr>
-                            <td><?= $sn++ ?></td>
-                            <td>
-                                <?php if (!empty($row['profile_photo'])): ?>
-                                    <img src="../../uploads/teachers/<?= htmlspecialchars($row['profile_photo']) ?>" alt="Photo" class="teacher-photo">
-                                <?php else: ?>
-                                    <span class="text-muted">N/A</span>
-                                <?php endif; ?>
-                            </td>
-                            <td><?= htmlspecialchars($row['full_name']) ?></td>
-                            <td><?= htmlspecialchars($row['email']) ?></td>
-                            <td><?= htmlspecialchars($row['username']) ?></td>
-                            <td><?= htmlspecialchars($row['class_assigned']) ?></td>
-                            <td>
-                                <a href="edit_teacher.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-sm">Update</a>
-                                <a href="delete_teacher.php?id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+            
+</div>
+<a href="dashboard.php" class="btn btn-info btn-sm mb-3">Dashboard </a>
+</div>
+   
 </body>
 </html>
